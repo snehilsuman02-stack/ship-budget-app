@@ -220,6 +220,17 @@ function initCloudSync() {
 
   try {
     firebaseApp = firebase.initializeApp(firebaseConfig);
+    if (firebase.auth) {
+      firebase.auth().onAuthStateChanged((user) => {
+        if (!user) {
+          firebase.auth().signInAnonymously().catch((authError) => {
+            console.error("Cloud auth failed:", authError);
+            cloudSyncStatus = "Cloud auth failed";
+            updateCloudStatus();
+          });
+        }
+      });
+    }
     if (!firebase.database) {
       console.warn("Cloud sync initialization failed: Firebase Database SDK not loaded.");
       cloudSyncStatus = "Realtime DB SDK missing";
@@ -294,6 +305,8 @@ function loadStateFromCloud({ silent = false } = {}) {
     })
     .catch((error) => {
       console.error("Cloud load failed:", error);
+      cloudSyncStatus = "Cloud load failed";
+      updateCloudStatus();
       if (!silent) {
         alert("Cloud load failed: " + (error && error.message ? error.message : "unknown error") + ". Check console for full details.");
       }
