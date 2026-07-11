@@ -157,7 +157,19 @@ function saveState({ skipCloud = false } = {}) {
 
 function mirrorLogisticsExpensesToUser() {
   if (!state.users["Logistics Officer"] || !state.users["user"]) return;
-  state.users["user"].expenses = state.users["Logistics Officer"].expenses.map((item) => ({ ...item }));
+  const loExpenses = Array.isArray(state.users["Logistics Officer"].expenses)
+    ? state.users["Logistics Officer"].expenses
+    : [];
+  const userExpenses = Array.isArray(state.users["user"].expenses)
+    ? state.users["user"].expenses
+    : [];
+
+  // Only mirror when the Logistics Officer has actual expense records.
+  if (loExpenses.length === 0 && userExpenses.length > 0) {
+    return;
+  }
+
+  state.users["user"].expenses = loExpenses.map((item) => ({ ...item }));
 }
 
 function getCurrentUserData() {
@@ -256,8 +268,38 @@ function isCloudSyncEnabled() {
 
 const cloudPath = "ship-budget-app/shared-state";
 
+function legacyCloudPathForUser(user) {
+  return `ship-budget-app/${encodeURIComponent(user || 'anonymous')}`;
+}
+
 function cloudPathForUser(user) {
   return cloudPath;
+}
+
+function normalizeUserData(name, userData) {
+  const base = makeUserData(name);
+  return {
+    ...base,
+    ...userData,
+    name,
+    role: userData && typeof userData.role === "string" ? userData.role : base.role,
+    plan:
+      userData && typeof userData.plan === "object"
+        ? { ...base.plan, ...userData.plan }
+        : base.plan,
+    expenses: Array.isArray(userData && userData.expenses)
+      ? userData.expenses.map((item) => ({ ...item }))
+      : base.expenses,
+  };
+}
+
+function mergeRemoteUsers(remoteUsers) {
+  if (!remoteUsers || typeof remoteUsers !== "object" || Array.isArray(remoteUsers)) {
+    return;
+  }
+  Object.entries(remoteUsers).forEach(([name, userData]) => {
+    state.users[name] = normalizeUserData(name, userData);
+  });
 }
 
 function saveStateToCloud() {
@@ -281,16 +323,30 @@ function loadStateFromCloud({ silent = false } = {}) {
     .once("value")
     .then((snapshot) => {
       const remote = snapshot.val();
+      if (remote) {
+        return { remote, source: path };
+      }
+      const legacyPath = legacyCloudPathForUser(state.currentUser);
+      if (legacyPath === path) {
+        return { remote: null, source: null };
+      }
+      console.log("Cloud state not found at shared path, checking legacy path:", legacyPath);
+      return firebaseDb.ref(legacyPath).once("value").then((legacySnapshot) => {
+        const legacyRemote = legacySnapshot.val();
+        return { remote: legacyRemote, source: legacyRemote ? legacyPath : null };
+      });
+    })
+    .then(({ remote, source }) => {
       if (!remote) {
         if (!silent) alert("No cloud data found at: " + path);
-        return remote;
+        return null;
       }
-      console.log("Cloud state loaded:", remote);
+      console.log(`Cloud state loaded from ${source}:`, remote);
       if (remote.users) {
-        state.users = remote.users;
+        mergeRemoteUsers(remote.users);
       }
-      if (remote.cdaPlan) {
-        state.cdaPlan = remote.cdaPlan;
+      if (remote.cdaPlan && typeof remote.cdaPlan === "object") {
+        state.cdaPlan = { ...state.cdaPlan, ...remote.cdaPlan };
       }
       if (remote.asOfDate) {
         state.asOfDate = remote.asOfDate;
@@ -298,9 +354,12 @@ function loadStateFromCloud({ silent = false } = {}) {
       if (!state.users[state.currentUser]) {
         state.currentUser = Object.keys(state.users)[0] || state.currentUser;
       }
-      saveState();
+      saveState({ skipCloud: true });
       updateDashboard();
       if (!silent) alert("Cloud data loaded successfully.");
+      if (source && source !== path) {
+        saveStateToCloud();
+      }
       return remote;
     })
     .catch((error) => {
