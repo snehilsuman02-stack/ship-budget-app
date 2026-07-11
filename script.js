@@ -110,6 +110,7 @@ function login() {
     state.currentUser = "Logistics Officer";
     state.users["Logistics Officer"] = state.users["Logistics Officer"] || makeUserData("Logistics Officer");
     state.users["Logistics Officer"].role = "admin";
+    mirrorLogisticsExpensesToUser();
     saveState();
     return true;
   }
@@ -140,6 +141,11 @@ function makeUserData(name) {
 
 function saveState() {
   localStorage.setItem(storageKey, JSON.stringify(state));
+}
+
+function mirrorLogisticsExpensesToUser() {
+  if (!state.users["Logistics Officer"] || !state.users["user"]) return;
+  state.users["user"].expenses = state.users["Logistics Officer"].expenses.map((item) => ({ ...item }));
 }
 
 function getCurrentUserData() {
@@ -179,6 +185,9 @@ function filterExpensesToDate(expenses, asOfDate) {
 }
 
 function updateDashboard() {
+  if (state.currentUser === "user") {
+    mirrorLogisticsExpensesToUser();
+  }
   const currentUserData = getCurrentUserData();
   const asOfDate = getAsOfDate();
   const expensesToDate = filterExpensesToDate(currentUserData.expenses, asOfDate);
@@ -379,7 +388,7 @@ function deleteExpense(expenseId) {
 
   const currentUserData = getCurrentUserData();
   currentUserData.expenses = currentUserData.expenses.filter((item) => item.id !== expenseId);
-  syncLogisticsExpensesToUser();
+  mirrorLogisticsExpensesToUser();
   saveState();
   updateDashboard();
 }
@@ -462,7 +471,7 @@ expenseForm.addEventListener("submit", (event) => {
   };
 
   currentUserData.expenses.push(newExpense);
-  syncLogisticsExpensesToUser();
+  mirrorLogisticsExpensesToUser();
   saveState();
   updateDashboard();
   expenseForm.reset();
