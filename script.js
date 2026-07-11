@@ -273,12 +273,14 @@ function renderPlanForm() {
   const adminEditable = isCurrentUserAdmin();
   const currentUserExpenses = state.users[state.currentUser] ? state.users[state.currentUser].expenses : [];
 
+  const totalExpenses = currentUserExpenses.reduce((sum, expense) => sum + Number(expense.amount), 0);
+
   planFields.innerHTML = Object.entries(state.cdaPlan)
     .map(([category, amount]) => {
+      const percentOfTotalExpenses = totalExpenses ? Math.round((Number(amount) / totalExpenses) * 100) : 0;
       const spent = currentUserExpenses
         .filter((expense) => expense.category === category)
         .reduce((sum, expense) => sum + Number(expense.amount), 0);
-      const percentOfHead = amount ? Math.round((spent / amount) * 100) : 0;
       return `
         <div class="plan-row">
           <div class="plan-meta">
@@ -287,7 +289,7 @@ function renderPlanForm() {
           </div>
           <div class="plan-details">
             <span>${formatCurrency(amount)} approved</span>
-            <span>${formatCurrency(spent)} spent • ${percentOfHead}% of approved amount</span>
+            <span>${formatCurrency(spent)} spent • ${percentOfTotalExpenses}% of total expenditure</span>
           </div>
         </div>
       `;
