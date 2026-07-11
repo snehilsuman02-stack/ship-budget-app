@@ -252,7 +252,6 @@ function cloudPathForUser(user) {
 function saveStateToCloud() {
   if (!isCloudSyncEnabled() || !state.currentUser) return Promise.resolve();
   const data = {
-    currentUser: state.currentUser,
     users: state.users,
     cdaPlan: state.cdaPlan,
     asOfDate: state.asOfDate,
@@ -264,15 +263,18 @@ function saveStateToCloud() {
 
 function loadStateFromCloud() {
   if (!isCloudSyncEnabled() || !state.currentUser) return Promise.resolve();
+  const path = cloudPathForUser(state.currentUser);
+  console.log("Loading cloud state from: ", path);
   return firebaseDb
-    .ref(cloudPathForUser(state.currentUser))
+    .ref(path)
     .once("value")
     .then((snapshot) => {
       const remote = snapshot.val();
       if (!remote) {
-        alert("No cloud data found for this user.");
+        alert("No cloud data found at: " + path);
         return remote;
       }
+      console.log("Cloud state loaded:", remote);
       if (remote.users) {
         state.users = {
           ...state.users,
@@ -295,7 +297,7 @@ function loadStateFromCloud() {
     })
     .catch((error) => {
       console.error("Cloud load failed:", error);
-      alert("Cloud load failed. Check console for details.");
+      alert("Cloud load failed: " + (error && error.message ? error.message : "unknown error") + ". Check console for full details.");
       return null;
     });
 }
