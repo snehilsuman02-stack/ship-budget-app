@@ -118,7 +118,7 @@ function login() {
     saveState();
     return true;
   }
-  alert("Invalid credentials. Use user/user or LOGO/1234.");
+  alert("Invalid username or password.");
   return false;
 }
 
@@ -529,7 +529,7 @@ window.addEventListener("DOMContentLoaded", () => {
   const today = new Date().toISOString().split("T")[0];
   dateInput.value = today;
   reportingDateInput.value = state.asOfDate || today;
-  loginNote.textContent = 'Enter user/user for normal access or LOGO/1234 for Logistics Officer admin access.';
+  loginNote.textContent = 'Enter credentials for the normal user or Logistics Officer account.';
   showLoginScreen();
 
   loginSubmit.addEventListener("click", () => {
