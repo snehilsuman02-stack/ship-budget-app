@@ -31,6 +31,7 @@ const exportCsvButton = document.getElementById("export-csv");
 const printReportButton = document.getElementById("print-report");
 const claimEditButton = document.getElementById("claim-edit");
 const resetUsersButton = document.getElementById("reset-users");
+const logoutButton = document.getElementById("logout-button");
 const loginScreen = document.getElementById("login-screen");
 const loginForm = document.getElementById("login-form");
 const loginUsername = document.getElementById("login-username");
@@ -573,6 +574,16 @@ function initializeApp() {
       saveState();
       updateDashboard();
       alert("CDA approved amounts updated.");
+    });
+  }
+
+  if (logoutButton) {
+    logoutButton.addEventListener("click", () => {
+      const confirmed = confirm("Log out and return to login screen?");
+      if (!confirmed) return;
+      state.currentUser = null;
+      saveState();
+      showLoginScreen();
     });
   }
 }
