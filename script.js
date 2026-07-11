@@ -109,13 +109,13 @@ function handleLoginTypeChange() {
   if (type === "user") {
     loginUsername.parentElement.style.display = "grid";
     loginPassword.placeholder = "user";
+    loginUsername.value = "user";
     loginNote.textContent = 'User login uses username user and password user.';
-    if (loginTypeRow) loginTypeRow.style.display = "none";
   } else {
-    loginUsername.parentElement.style.display = "none";
-    loginPassword.placeholder = 'Enter your Logistics Officer PIN';
-    loginNote.textContent = 'Logistics Officer login uses a settable 4-digit PIN.';
-    if (loginTypeRow) loginTypeRow.style.display = "grid";
+    loginUsername.parentElement.style.display = "grid";
+    loginPassword.placeholder = '1234';
+    loginUsername.value = "LOGO";
+    loginNote.textContent = 'Logistics Officer login uses username LOGO and password 1234.';
   }
 }
 
@@ -138,35 +138,10 @@ function loginAsUser() {
 }
 
 function loginAsLogistics() {
+  const username = loginUsername.value.trim();
   const password = loginPassword.value;
-  if (!isLogisticsName("Logistics Officer")) {
-    alert("Invalid Logistics Officer account.");
-    return false;
-  }
-  if (!state.adminPin) {
-    const pin1 = password || prompt("Set a new 4-digit Logistics Officer PIN:");
-    if (!pin1 || !/^[0-9]{4}$/.test(pin1)) {
-      alert("PIN must be exactly 4 digits.");
-      return false;
-    }
-    const pin2 = prompt("Confirm the 4-digit PIN:");
-    if (pin1 !== pin2) {
-      alert("PINs do not match. Try again.");
-      return false;
-    }
-    setAdminPin(pin1);
-    state.currentUser = "Logistics Officer";
-    state.users["Logistics Officer"] = state.users["Logistics Officer"] || makeUserData("Logistics Officer");
-    state.users["Logistics Officer"].role = "admin";
-    saveState();
-    return true;
-  }
-  if (!password) {
-    alert("Enter the Logistics Officer PIN.");
-    return false;
-  }
-  if (!verifyAdminPin(password)) {
-    alert("Incorrect PIN.");
+  if (username !== "LOGO" || password !== "1234") {
+    alert("Invalid Logistics Officer credentials.");
     return false;
   }
   state.currentUser = "Logistics Officer";
