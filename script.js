@@ -33,6 +33,7 @@ const userNameInput = document.getElementById("user-name");
 const switchUserButton = document.getElementById("switch-user");
 const exportCsvButton = document.getElementById("export-csv");
 const printReportButton = document.getElementById("print-report");
+const claimEditButton = document.getElementById("claim-edit");
 const asOfDateLabel = document.getElementById("as-of-date-label");
 
 function loadState() {
@@ -46,9 +47,15 @@ function loadState() {
     if (!parsed || !parsed.users) {
       return createDefaultState();
     }
+    // Ensure only the Logistics Officer (username containing "logistic") is granted admin
+    const normalizedUsers = Object.fromEntries(
+      Object.entries(parsed.users).map(([k, v]) => [k, { ...v, role: isLogisticsName(k) ? 'admin' : 'user' }])
+    );
+
     return {
       ...createDefaultState(),
       ...parsed,
+      users: normalizedUsers,
       asOfDate: parsed.asOfDate || getDefaultAsOfDate(),
     };
   } catch {
@@ -58,6 +65,11 @@ function loadState() {
 
 function getDefaultAsOfDate() {
   return new Date().toISOString().split("T")[0];
+}
+
+function isLogisticsName(name) {
+  if (!name) return false;
+  return /logistic/i.test(String(name));
 }
 
 function createDefaultState() {
@@ -74,7 +86,7 @@ function createDefaultState() {
 function makeUserData(name) {
   return {
     name,
-    role: name === "Captain" ? "admin" : "user",
+    role: isLogisticsName(name) ? "admin" : "user",
     plan: { ...defaultBudgetCaps },
     expenses: sampleExpenses.map((item) => ({ ...item })),
   };
@@ -112,6 +124,10 @@ function getAsOfDate() {
   return reportingDateInput.value || state.asOfDate || getDefaultAsOfDate();
 }
 
+function isCurrentUserAdmin() {
+  return state.users[state.currentUser] && state.users[state.currentUser].role === "admin";
+}
+
 function filterExpensesToDate(expenses, asOfDate) {
   return expenses.filter((item) => item.date <= asOfDate);
 }
@@ -131,6 +147,25 @@ function updateDashboard() {
   document.getElementById("remaining-budget").textContent = formatCurrency(remainingBudget);
   document.getElementById("utilization-rate").textContent = `${utilizationRate}%`;
   asOfDateLabel.textContent = asOfDate;
+
+  // Enable/disable editing controls based on role
+  const admin = isCurrentUserAdmin();
+  // Expense form controls
+  dateInput.disabled = !admin;
+  categoryInput.disabled = !admin;
+  amountInput.disabled = !admin;
+  noteInput.disabled = !admin;
+  // Expense submit button
+  const expenseSubmit = expenseForm.querySelector('button[type="submit"]');
+  if (expenseSubmit) expenseSubmit.disabled = !admin;
+  // Plan fields and submit
+  planFields.querySelectorAll('input').forEach((el) => (el.disabled = !admin));
+  const planSubmit = planForm.querySelector('button[type="submit"]');
+  if (planSubmit) planSubmit.disabled = !admin;
+  // Show or hide claim button
+  if (claimEditButton) {
+    claimEditButton.style.display = admin ? 'none' : (isLogisticsName(state.currentUser) ? 'inline-block' : 'none');
+  }
 
   const statusPill = document.getElementById("status-pill");
   if (utilizationRate > 85) {
@@ -292,6 +327,23 @@ expenseList.addEventListener("click", (event) => {
   const id = Number(button.dataset.id);
   deleteExpense(id);
 });
+
+// Claim edit access (grant admin role to current user)
+if (claimEditButton) {
+  claimEditButton.addEventListener('click', () => {
+    const confirmGrant = confirm('Grant edit rights to the current user? Only the Logistics Officer is permitted to claim edit access.');
+    if (!confirmGrant) return;
+    if (!isLogisticsName(state.currentUser)) {
+      alert('Only the Logistics Officer may claim edit access.');
+      return;
+    }
+    if (!state.users[state.currentUser]) state.users[state.currentUser] = makeUserData(state.currentUser);
+    state.users[state.currentUser].role = 'admin';
+    saveState();
+    updateDashboard();
+    alert('Edit rights granted. You can now add/edit/delete entries.');
+  });
+}
 
 expenseForm.addEventListener("submit", (event) => {
   event.preventDefault();
