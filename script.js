@@ -264,26 +264,31 @@ function renderCategoryOptions() {
 }
 
 function renderPlanForm() {
-  const totalSpent = Object.values(state.users[state.currentUser] ? state.users[state.currentUser].expenses.reduce((acc, expense) => {
-    acc[expense.category] = (acc[expense.category] || 0) + expense.amount;
-    return acc;
-  }, {}) : {}).reduce((sum, value) => sum + value, 0);
+  const currentUserExpenses = state.users[state.currentUser] ? state.users[state.currentUser].expenses : [];
+  const totalSpent = currentUserExpenses.reduce((sum, expense) => sum + Number(expense.amount), 0);
 
   planFields.innerHTML = Object.entries(defaultBudgetCaps)
     .map(([category, amount]) => {
-      const spent = (state.users[state.currentUser] ? state.users[state.currentUser].expenses.filter((expense) => expense.category === category).reduce((sum, expense) => sum + Number(expense.amount), 0) : 0);
+      const spent = currentUserExpenses
+        .filter((expense) => expense.category === category)
+        .reduce((sum, expense) => sum + Number(expense.amount), 0);
       const percentOfTotal = totalSpent ? Math.round((spent / totalSpent) * 100) : 0;
-      const fillWidth = amount ? Math.min(100, Math.round((spent / amount) * 100)) : 0;
+      const percentOfCap = amount ? Math.min(100, Math.round((spent / amount) * 100)) : 0;
+      const status = percentOfCap < 25 ? 'low' : percentOfCap < 50 ? 'good' : 'healthy';
       return `
         <div class="plan-row">
           <div class="plan-meta">
             <span>${category}</span>
-            <span>${formatCurrency(amount)}</span>
+            <strong>${formatCurrency(amount)}</strong>
           </div>
-          <div class="progress-text">${percentOfTotal}% of total expenditure</div>
+          <div class="plan-details">
+            <span>${formatCurrency(spent)} spent</span>
+            <span>${percentOfTotal}% of total spend</span>
+          </div>
           <div class="plan-bar">
-            <div class="plan-fill" style="width: ${fillWidth}%;"></div>
+            <div class="plan-fill ${status}" style="width: ${percentOfCap}%;"></div>
           </div>
+          <div class="plan-status ${status}">${status === 'low' ? 'Low' : status === 'good' ? 'Good' : 'Healthy'}</div>
         </div>
       `;
     })

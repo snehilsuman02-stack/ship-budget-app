@@ -184,26 +184,29 @@ body {
 .plan-fields { display: grid; gap: 14px; }
 .plan-row {
   display: grid;
-  gap: 8px;
-  padding: 14px;
+  gap: 10px;
+  padding: 16px;
   border: 1px solid rgba(255,255,255,0.06);
-  border-radius: 16px;
-  background: rgba(255,255,255,0.02);
+  border-radius: 18px;
+  background: rgba(255,255,255,0.03);
 }
 .plan-meta {
   display: flex;
   justify-content: space-between;
   gap: 12px;
   color: var(--text);
-  font-weight: 600;
+  font-weight: 700;
 }
-.progress-text {
+.plan-details {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
   color: var(--muted);
   font-size: 0.85rem;
 }
 .plan-bar {
   width: 100%;
-  height: 10px;
+  height: 12px;
   border-radius: 999px;
   background: rgba(255,255,255,0.08);
   overflow: hidden;
@@ -211,7 +214,35 @@ body {
 .plan-fill {
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--blue), var(--green));
+}
+.plan-fill.low {
+  background: linear-gradient(90deg, #ff5e5e, #ff8a8a);
+}
+.plan-fill.good {
+  background: linear-gradient(90deg, #ffb24c, #ffd36f);
+}
+.plan-fill.healthy {
+  background: linear-gradient(90deg, #3ddc97, #76f3b1);
+}
+.plan-status {
+  width: fit-content;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.plan-status.low {
+  color: #ffb8b8;
+  background: rgba(255,94,94,0.14);
+}
+.plan-status.good {
+  color: #ffdb9d;
+  background: rgba(255,178,76,0.18);
+}
+.plan-status.healthy {
+  color: #a5f7cc;
+  background: rgba(61,220,151,0.15);
 }
 
 form { display: grid; gap: 12px; }
