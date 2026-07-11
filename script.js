@@ -270,31 +270,19 @@ function renderCategoryOptions() {
 }
 
 function renderPlanForm() {
-  const currentUserExpenses = state.users[state.currentUser] ? state.users[state.currentUser].expenses : [];
-  const totalSpent = currentUserExpenses.reduce((sum, expense) => sum + Number(expense.amount), 0);
+  const adminEditable = isCurrentUserAdmin();
 
   planFields.innerHTML = Object.entries(state.cdaPlan)
     .map(([category, amount]) => {
-      const spent = currentUserExpenses
-        .filter((expense) => expense.category === category)
-        .reduce((sum, expense) => sum + Number(expense.amount), 0);
-      const percentOfTotal = totalSpent ? Math.round((spent / totalSpent) * 100) : 0;
-      const percentOfCap = amount ? Math.min(100, Math.round((spent / amount) * 100)) : 0;
-      const status = percentOfCap < 25 ? 'low' : percentOfCap < 50 ? 'good' : 'healthy';
       return `
         <div class="plan-row">
           <div class="plan-meta">
             <span>${category}</span>
-            ${state.currentUser === 'Logistics Officer' ? `<input class="plan-input" data-category="${category}" type="number" min="0" step="1000" value="${amount}" />` : `<strong>${formatCurrency(amount)}</strong>`}
+            ${adminEditable ? `<input class="plan-input" data-category="${category}" type="number" min="0" step="1000" value="${amount}" />` : `<strong>${formatCurrency(amount)}</strong>`}
           </div>
           <div class="plan-details">
-            <span>${formatCurrency(spent)} spent</span>
-            <span>${percentOfTotal}% of total spend</span>
+            <span>${adminEditable ? 'Editable by LOGO only' : 'CDA approved amount'}</span>
           </div>
-          <div class="plan-bar">
-            <div class="plan-fill ${status}" style="width: ${percentOfCap}%;"></div>
-          </div>
-          <div class="plan-status ${status}">${status === 'low' ? 'Low' : status === 'good' ? 'Good' : 'Healthy'}</div>
         </div>
       `;
     })
