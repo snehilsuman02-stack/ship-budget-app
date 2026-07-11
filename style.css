@@ -49,6 +49,14 @@ body {
   color: var(--text);
   font-weight: 600;
 }
+.reset-btn {
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: rgba(255, 97, 97, 0.16);
+  color: var(--danger);
+  font-weight: 600;
+}
 .as-of-date-text { color: var(--muted); font-size: 0.9rem; margin-bottom: 12px; }
 .as-of-date-text strong { color: var(--text); }
 

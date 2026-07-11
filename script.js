@@ -34,6 +34,7 @@ const switchUserButton = document.getElementById("switch-user");
 const exportCsvButton = document.getElementById("export-csv");
 const printReportButton = document.getElementById("print-report");
 const claimEditButton = document.getElementById("claim-edit");
+const resetUsersButton = document.getElementById("reset-users");
 const asOfDateLabel = document.getElementById("as-of-date-label");
 
 function loadState() {
@@ -179,6 +180,9 @@ function updateDashboard() {
   // Show or hide claim button
   if (claimEditButton) {
     claimEditButton.style.display = admin ? 'none' : (isLogisticsName(state.currentUser) ? 'inline-block' : 'none');
+  }
+  if (resetUsersButton) {
+    resetUsersButton.style.display = admin ? 'inline-block' : 'none';
   }
 
   const statusPill = document.getElementById("status-pill");
@@ -345,42 +349,59 @@ expenseList.addEventListener("click", (event) => {
 // Claim edit access (grant admin role to current user)
 if (claimEditButton) {
   claimEditButton.addEventListener('click', () => {
-      if (!isLogisticsName(state.currentUser)) {
-        alert('Only the Logistics Officer may claim edit access.');
+    if (!isLogisticsName(state.currentUser)) {
+      alert('Only the Logistics Officer may claim edit access.');
+      return;
+    }
+
+    if (!state.adminPin) {
+      const pin1 = prompt('Set a new 4-digit admin PIN (numbers only):');
+      if (!pin1 || !/^[0-9]{4}$/.test(pin1)) {
+        alert('PIN must be exactly 4 digits.');
         return;
       }
-
-      if (!state.adminPin) {
-        const pin1 = prompt('Set a new 4-digit admin PIN (numbers only):');
-        if (!pin1 || !/^[0-9]{4}$/.test(pin1)) {
-          alert('PIN must be exactly 4 digits.');
-          return;
-        }
-        const pin2 = prompt('Confirm the 4-digit admin PIN:');
-        if (pin1 !== pin2) {
-          alert('PINs do not match. Try again.');
-          return;
-        }
-        setAdminPin(pin1);
-        if (!state.users[state.currentUser]) state.users[state.currentUser] = makeUserData(state.currentUser);
-        state.users[state.currentUser].role = 'admin';
-        saveState();
-        updateDashboard();
-        alert('Admin PIN set and edit access granted.');
+      const pin2 = prompt('Confirm the 4-digit admin PIN:');
+      if (pin1 !== pin2) {
+        alert('PINs do not match. Try again.');
         return;
       }
+      setAdminPin(pin1);
+      if (!state.users[state.currentUser]) state.users[state.currentUser] = makeUserData(state.currentUser);
+      state.users[state.currentUser].role = 'admin';
+      saveState();
+      updateDashboard();
+      alert('Admin PIN set and edit access granted.');
+      return;
+    }
 
-      const attempt = prompt('Enter the 4-digit admin PIN:');
-      if (!attempt) return;
-      if (verifyAdminPin(attempt)) {
-        if (!state.users[state.currentUser]) state.users[state.currentUser] = makeUserData(state.currentUser);
-        state.users[state.currentUser].role = 'admin';
-        saveState();
-        updateDashboard();
-        alert('PIN accepted. Edit access granted.');
-      } else {
-        alert('Incorrect PIN.');
-      }
+    const attempt = prompt('Enter the 4-digit admin PIN:');
+    if (!attempt) return;
+    if (verifyAdminPin(attempt)) {
+      if (!state.users[state.currentUser]) state.users[state.currentUser] = makeUserData(state.currentUser);
+      state.users[state.currentUser].role = 'admin';
+      saveState();
+      updateDashboard();
+      alert('PIN accepted. Edit access granted.');
+    } else {
+      alert('Incorrect PIN.');
+    }
+  });
+}
+
+if (resetUsersButton) {
+  resetUsersButton.addEventListener('click', () => {
+    if (!isCurrentUserAdmin()) {
+      alert('Only an admin can delete all users.');
+      return;
+    }
+    const confirmed = confirm('Delete all users and reset to defaults? This will remove all custom user accounts.');
+    if (!confirmed) return;
+    state = createDefaultState();
+    saveState();
+    updateDashboard();
+    alert('All users have been deleted and defaults restored.');
+  });
+}
 
 expenseForm.addEventListener("submit", (event) => {
   event.preventDefault();
