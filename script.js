@@ -124,31 +124,24 @@ function getLoginType() {
   return selected ? selected.value : "user";
 }
 
-function loginAsUser() {
+function login() {
   const username = loginUsername.value.trim();
   const password = loginPassword.value;
-  if (username !== "user" || password !== "user") {
-    alert("Invalid user credentials.");
-    return false;
+  if (username === "user" && password === "user") {
+    state.currentUser = "user";
+    state.users["user"] = state.users["user"] || makeUserData("user");
+    saveState();
+    return true;
   }
-  state.currentUser = "user";
-  state.users["user"] = state.users["user"] || makeUserData("user");
-  saveState();
-  return true;
-}
-
-function loginAsLogistics() {
-  const username = loginUsername.value.trim();
-  const password = loginPassword.value;
-  if (username !== "LOGO" || password !== "1234") {
-    alert("Invalid Logistics Officer credentials.");
-    return false;
+  if (username === "LOGO" && password === "1234") {
+    state.currentUser = "Logistics Officer";
+    state.users["Logistics Officer"] = state.users["Logistics Officer"] || makeUserData("Logistics Officer");
+    state.users["Logistics Officer"].role = "admin";
+    saveState();
+    return true;
   }
-  state.currentUser = "Logistics Officer";
-  state.users["Logistics Officer"] = state.users["Logistics Officer"] || makeUserData("Logistics Officer");
-  state.users["Logistics Officer"].role = "admin";
-  saveState();
-  return true;
+  alert("Invalid credentials. Use user/user or LOGO/1234.");
+  return false;
 }
 
 function createDefaultState() {
@@ -563,8 +556,7 @@ window.addEventListener("DOMContentLoaded", () => {
   showLoginScreen();
 
   loginSubmit.addEventListener("click", () => {
-    const type = getLoginType();
-    const success = type === "user" ? loginAsUser() : loginAsLogistics();
+    const success = login();
     if (success) {
       hideLoginScreen();
       updateDashboard();
