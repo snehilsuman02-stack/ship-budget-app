@@ -299,7 +299,12 @@ function updateDashboard() {
 }
 
 function renderUserSelection() {
-  const users = Object.keys(state.users);
+  const users = Object.keys(state.users).filter((user) => {
+    if (user === "Logistics Officer") {
+      return isCurrentUserAdmin() || state.currentUser === "Logistics Officer";
+    }
+    return true;
+  });
   userSelect.innerHTML = users
     .map((user) => `<option value="${user}" ${user === state.currentUser ? "selected" : ""}>${user}</option>`)
     .join("");
@@ -541,6 +546,11 @@ switchUserButton.addEventListener("click", () => {
     return;
   }
 
+  if (isLogisticsName(newUserName)) {
+    alert("Switching to the Logistics Officer account is only allowed through the Logistics Officer login.");
+    return;
+  }
+
   if (!state.users[newUserName]) {
     state.users[newUserName] = makeUserData(newUserName);
   }
@@ -573,10 +583,10 @@ window.addEventListener("DOMContentLoaded", () => {
   const today = new Date().toISOString().split("T")[0];
   dateInput.value = today;
   reportingDateInput.value = state.asOfDate || today;
+  loginTypeInputs.forEach((input) => input.addEventListener("change", handleLoginTypeChange));
   handleLoginTypeChange();
   showLoginScreen();
 
-  loginTypeInputs.forEach((input) => input.addEventListener("change", handleLoginTypeChange));
   loginSubmit.addEventListener("click", () => {
     const type = getLoginType();
     const success = type === "user" ? loginAsUser() : loginAsLogistics();
