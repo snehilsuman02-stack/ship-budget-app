@@ -111,7 +111,7 @@ function login() {
   if (username === "user" && password === "user") {
     state.currentUser = "user";
     state.users["user"] = state.users["user"] || makeUserData("user");
-    saveState();
+    saveState({ skipCloud: true });
     return true;
   }
   if (username === "LOGO" && password === "1234") {
@@ -119,7 +119,7 @@ function login() {
     state.users["Logistics Officer"] = state.users["Logistics Officer"] || makeUserData("Logistics Officer");
     state.users["Logistics Officer"].role = "admin";
     mirrorLogisticsExpensesToUser();
-    saveState();
+    saveState({ skipCloud: true });
     return true;
   }
   alert("Invalid username or password.");
@@ -148,9 +148,9 @@ function makeUserData(name) {
   };
 }
 
-function saveState() {
+function saveState({ skipCloud = false } = {}) {
   localStorage.setItem(storageKey, JSON.stringify(state));
-  if (isCloudSyncEnabled()) {
+  if (!skipCloud && isCloudSyncEnabled()) {
     saveStateToCloud();
   }
 }
@@ -316,9 +316,8 @@ function syncCloudData() {
         alert("Local data saved to cloud.");
       });
     }
-    return saveStateToCloud().then(() => {
-      alert("Cloud data synced successfully.");
-    });
+    alert("Cloud data loaded and applied successfully.");
+    return Promise.resolve();
   });
 }
 
@@ -770,6 +769,11 @@ function initializeApp() {
   loginNote.textContent = 'Enter credentials for the normal user or Logistics Officer account.';
   initCloudSync();
   updateCloudStatus();
+
+  if (state.currentUser && isCloudSyncEnabled()) {
+    loadStateFromCloud({ silent: true });
+  }
+
   showLoginScreen();
 
   loginSubmit.addEventListener("click", () => {
