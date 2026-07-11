@@ -245,6 +245,9 @@ function updateDashboard() {
   renderProgress(spendByCategory, state.cdaPlan);
   renderDonutChart(spendByCategory);
   renderExpenseList();
+  if (savePlanButton) {
+    savePlanButton.style.display = isCurrentUserAdmin() ? 'block' : 'none';
+  }
 }
 
 function renderUserSelection() {
@@ -282,7 +285,7 @@ function renderPlanForm() {
         <div class="plan-row">
           <div class="plan-meta">
             <span>${category}</span>
-            ${isCurrentUserAdmin() ? `<input class="plan-input" data-category="${category}" type="number" min="0" step="1000" value="${amount}" />` : `<strong>${formatCurrency(amount)}</strong>`}
+            ${state.currentUser === 'Logistics Officer' ? `<input class="plan-input" data-category="${category}" type="number" min="0" step="1000" value="${amount}" />` : `<strong>${formatCurrency(amount)}</strong>`}
           </div>
           <div class="plan-details">
             <span>${formatCurrency(spent)} spent</span>
