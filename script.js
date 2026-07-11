@@ -37,8 +37,6 @@ const claimEditButton = document.getElementById("claim-edit");
 const resetUsersButton = document.getElementById("reset-users");
 const loginScreen = document.getElementById("login-screen");
 const loginForm = document.getElementById("login-form");
-const loginTypeRow = document.querySelector(".login-type-row");
-const loginTypeInputs = document.querySelectorAll('input[name="loginType"]');
 const loginUsername = document.getElementById("login-username");
 const loginPassword = document.getElementById("login-password");
 const loginSubmit = document.getElementById("login-submit");
@@ -102,26 +100,6 @@ function showLoginScreen() {
 function hideLoginScreen() {
   if (loginScreen) loginScreen.style.display = "none";
   document.querySelector(".app-shell").style.display = "block";
-}
-
-function handleLoginTypeChange() {
-  const type = getLoginType();
-  if (type === "user") {
-    loginUsername.parentElement.style.display = "grid";
-    loginPassword.placeholder = "user";
-    loginUsername.value = "user";
-    loginNote.textContent = 'User login uses username user and password user.';
-  } else {
-    loginUsername.parentElement.style.display = "grid";
-    loginPassword.placeholder = '1234';
-    loginUsername.value = "LOGO";
-    loginNote.textContent = 'Logistics Officer login uses username LOGO and password 1234.';
-  }
-}
-
-function getLoginType() {
-  const selected = Array.from(loginTypeInputs).find((input) => input.checked);
-  return selected ? selected.value : "user";
 }
 
 function login() {
@@ -551,8 +529,7 @@ window.addEventListener("DOMContentLoaded", () => {
   const today = new Date().toISOString().split("T")[0];
   dateInput.value = today;
   reportingDateInput.value = state.asOfDate || today;
-  loginTypeInputs.forEach((input) => input.addEventListener("change", handleLoginTypeChange));
-  handleLoginTypeChange();
+  loginNote.textContent = 'Enter user/user for normal access or LOGO/1234 for Logistics Officer admin access.';
   showLoginScreen();
 
   loginSubmit.addEventListener("click", () => {
