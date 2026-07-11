@@ -261,7 +261,7 @@ function saveStateToCloud() {
   });
 }
 
-function loadStateFromCloud() {
+function loadStateFromCloud({ silent = false } = {}) {
   if (!isCloudSyncEnabled() || !state.currentUser) return Promise.resolve();
   const path = cloudPathForUser(state.currentUser);
   console.log("Loading cloud state from: ", path);
@@ -271,33 +271,32 @@ function loadStateFromCloud() {
     .then((snapshot) => {
       const remote = snapshot.val();
       if (!remote) {
-        alert("No cloud data found at: " + path);
+        if (!silent) alert("No cloud data found at: " + path);
         return remote;
       }
       console.log("Cloud state loaded:", remote);
       if (remote.users) {
-        state.users = {
-          ...state.users,
-          ...remote.users,
-        };
+        state.users = remote.users;
       }
       if (remote.cdaPlan) {
-        state.cdaPlan = {
-          ...state.cdaPlan,
-          ...remote.cdaPlan,
-        };
+        state.cdaPlan = remote.cdaPlan;
       }
       if (remote.asOfDate) {
         state.asOfDate = remote.asOfDate;
       }
+      if (!state.users[state.currentUser]) {
+        state.currentUser = Object.keys(state.users)[0] || state.currentUser;
+      }
       saveState();
       updateDashboard();
-      alert("Cloud data loaded successfully.");
+      if (!silent) alert("Cloud data loaded successfully.");
       return remote;
     })
     .catch((error) => {
       console.error("Cloud load failed:", error);
-      alert("Cloud load failed: " + (error && error.message ? error.message : "unknown error") + ". Check console for full details.");
+      if (!silent) {
+        alert("Cloud load failed: " + (error && error.message ? error.message : "unknown error") + ". Check console for full details.");
+      }
       return null;
     });
 }
@@ -781,6 +780,12 @@ function initializeApp() {
       if (isCloudSyncEnabled()) {
         syncCloudData();
       }
+    }
+  });
+
+  window.addEventListener("focus", () => {
+    if (isCloudSyncEnabled() && state.currentUser) {
+      loadStateFromCloud({ silent: true });
     }
   });
 
