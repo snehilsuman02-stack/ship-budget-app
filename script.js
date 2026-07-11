@@ -20,7 +20,7 @@ const dateInput = document.getElementById("expense-date");
 const categoryInput = document.getElementById("expense-category");
 const amountInput = document.getElementById("expense-amount");
 const noteInput = document.getElementById("expense-note");
-const planForm = document.getElementById("plan-form");
+const planPanel = document.getElementById("plan-panel");
 const planFields = document.getElementById("plan-fields");
 const userSelect = document.getElementById("user-select");
 const reportingDateInput = document.getElementById("reporting-date");
@@ -213,10 +213,6 @@ function updateDashboard() {
   // Expense submit button
   const expenseSubmit = expenseForm.querySelector('button[type="submit"]');
   if (expenseSubmit) expenseSubmit.disabled = !admin;
-  // Plan fields and submit
-  planFields.querySelectorAll('input').forEach((el) => (el.disabled = !admin));
-  const planSubmit = planForm.querySelector('button[type="submit"]');
-  if (planSubmit) planSubmit.disabled = !admin;
   // Show or hide claim button
   if (claimEditButton) {
     claimEditButton.style.display = admin ? 'none' : (isLogisticsName(state.currentUser) ? 'inline-block' : 'none');
@@ -268,15 +264,13 @@ function renderCategoryOptions() {
 }
 
 function renderPlanForm() {
-  const currentUserData = getCurrentUserData();
   planFields.innerHTML = Object.entries(defaultBudgetCaps)
-    .map(([category, defaultValue]) => {
-      const value = currentUserData.plan[category] ?? defaultValue;
+    .map(([category, amount]) => {
       return `
-        <label>
-          ${category}
-          <input id="plan-${category}" type="number" min="0" step="1000" value="${value}" />
-        </label>
+        <div class="plan-row">
+          <span>${category}</span>
+          <strong>${formatCurrency(amount)}</strong>
+        </div>
       `;
     })
     .join("");
@@ -478,16 +472,6 @@ expenseForm.addEventListener("submit", (event) => {
   dateInput.value = new Date().toISOString().split("T")[0];
 });
 
-planForm.addEventListener("submit", (event) => {
-  event.preventDefault();
-  const currentUserData = getCurrentUserData();
-  currentUserData.plan = Object.entries(defaultBudgetCaps).reduce((acc, [category]) => {
-    acc[category] = Number(document.getElementById(`plan-${category}`).value) || 0;
-    return acc;
-  }, {});
-  saveState();
-  updateDashboard();
-});
 
 reportingDateInput.addEventListener("change", (event) => {
   state.asOfDate = event.target.value;
