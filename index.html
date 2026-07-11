@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ship Budget Tracker</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="hero">
+        <div>
+          <p class="eyebrow">Marine finance control</p>
+          <h1>Ship Budget Tracker</h1>
+          <p class="hero-text">
+            Track vessel spending, manage monthly budgets, and review live expenditure trends for every department.
+          </p>
+        </div>
+        <div class="header-actions">
+          <div class="user-panel">
+            <label for="user-select">Current user</label>
+            <select id="user-select"></select>
+          </div>
+          <div class="user-panel">
+            <label for="reporting-date">As of date</label>
+            <input id="reporting-date" type="date" />
+          </div>
+          <div class="user-panel">
+            <label for="user-name">New or existing user</label>
+            <div class="user-row">
+              <input id="user-name" type="text" placeholder="Captain" />
+              <button id="switch-user" type="button">Switch</button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main class="dashboard">
+        <section class="summary-grid">
+          <article class="card summary-card accent-blue">
+            <p>Planned monthly budget</p>
+            <h2 id="total-budget">0</h2>
+          </article>
+          <article class="card summary-card accent-orange">
+            <p>Spent this month</p>
+            <h2 id="total-spent">0</h2>
+          </article>
+          <article class="card summary-card accent-green">
+            <p>Remaining budget</p>
+            <h2 id="remaining-budget">0</h2>
+          </article>
+          <article class="card summary-card accent-purple">
+            <p>Utilization</p>
+            <h2 id="utilization-rate">0%</h2>
+          </article>
+        </section>
+
+        <section class="content-grid">
+          <div class="card chart-card">
+            <div class="card-header">
+              <h3>Budget status</h3>
+              <span id="status-pill" class="status-pill">Healthy</span>
+            </div>
+            <div class="as-of-date-text">Showing spending as of <strong id="as-of-date-label"></strong></div>
+            <div class="progress-list" id="progress-list"></div>
+          </div>
+
+          <div class="card donut-card">
+            <div class="card-header">
+              <h3>Spend by head</h3>
+              <div class="action-row">
+                <button id="export-csv" type="button">Export CSV</button>
+                <button id="print-report" type="button">Print report</button>
+              </div>
+            </div>
+            <div class="chart-wrap">
+              <div id="donut-chart" class="donut-chart"></div>
+              <div id="legend" class="legend"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="content-grid lower-grid">
+          <div class="card form-card">
+            <div class="card-header">
+              <h3>Record expenditure</h3>
+            </div>
+            <form id="expense-form">
+              <label>
+                Date
+                <input type="date" id="expense-date" required />
+              </label>
+              <label>
+                Budget head
+                <select id="expense-category" required></select>
+              </label>
+              <label>
+                Amount
+                <input type="number" id="expense-amount" min="1" step="0.01" required />
+              </label>
+              <label>
+                Note
+                <input type="text" id="expense-note" placeholder="Supply or service detail" />
+              </label>
+              <button type="submit">Add expense</button>
+            </form>
+          </div>
+
+          <div class="card list-card">
+            <div class="card-header">
+              <h3>Monthly plan</h3>
+            </div>
+            <form id="plan-form">
+              <div id="plan-fields" class="plan-fields"></div>
+              <button type="submit">Save monthly plan</button>
+            </form>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-header">
+            <h3>Recent expenditures</h3>
+          </div>
+          <div id="expense-list" class="expense-list"></div>
+        </section>
+      </main>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>
