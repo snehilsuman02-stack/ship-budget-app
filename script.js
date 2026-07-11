@@ -360,6 +360,21 @@ function renderExpenseList() {
     .join("");
 }
 
+function syncExpenseAdditionToUser(expense) {
+  if (state.currentUser !== "Logistics Officer") return;
+  const userData = state.users["user"] || (state.users["user"] = makeUserData("user"));
+  if (!userData.expenses.some((item) => item.id === expense.id)) {
+    userData.expenses.push({ ...expense });
+  }
+}
+
+function syncExpenseDeletionFromUser(expenseId) {
+  if (state.currentUser !== "Logistics Officer") return;
+  const userData = state.users["user"];
+  if (!userData) return;
+  userData.expenses = userData.expenses.filter((item) => item.id !== expenseId);
+}
+
 function deleteExpense(expenseId) {
   const currentUser = state.currentUser;
   const isAdmin = state.users[currentUser] && state.users[currentUser].role === "admin";
@@ -370,6 +385,7 @@ function deleteExpense(expenseId) {
 
   const currentUserData = getCurrentUserData();
   currentUserData.expenses = currentUserData.expenses.filter((item) => item.id !== expenseId);
+  syncExpenseDeletionFromUser(expenseId);
   saveState();
   updateDashboard();
 }
@@ -452,6 +468,7 @@ expenseForm.addEventListener("submit", (event) => {
   };
 
   currentUserData.expenses.push(newExpense);
+  syncExpenseAdditionToUser(newExpense);
   saveState();
   updateDashboard();
   expenseForm.reset();
