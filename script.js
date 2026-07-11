@@ -271,9 +271,12 @@ function renderCategoryOptions() {
 
 function renderPlanForm() {
   const adminEditable = isCurrentUserAdmin();
+  const currentUserExpenses = state.users[state.currentUser] ? state.users[state.currentUser].expenses : [];
+  const totalExpenses = currentUserExpenses.reduce((sum, expense) => sum + Number(expense.amount), 0);
 
   planFields.innerHTML = Object.entries(state.cdaPlan)
     .map(([category, amount]) => {
+      const percentOfExpenses = totalExpenses ? Math.round((Number(amount) / totalExpenses) * 100) : 0;
       return `
         <div class="plan-row">
           <div class="plan-meta">
@@ -281,7 +284,8 @@ function renderPlanForm() {
             ${adminEditable ? `<input class="plan-input" data-category="${category}" type="number" min="0" step="1000" value="${amount}" />` : `<strong>${formatCurrency(amount)}</strong>`}
           </div>
           <div class="plan-details">
-            <span>${adminEditable ? 'Editable by LOGO only' : 'CDA approved amount'}</span>
+            <span>${formatCurrency(amount)} approved</span>
+            <span>${percentOfExpenses}% of total expenditure</span>
           </div>
         </div>
       `;
