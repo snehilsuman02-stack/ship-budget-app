@@ -203,16 +203,31 @@ let firebaseApp = null;
 let firebaseDb = null;
 
 function initCloudSync() {
-  if (!window.firebase || !firebaseConfig.apiKey) {
+  if (!window.firebase) {
+    console.warn("Cloud sync initialization failed: Firebase SDK not loaded.");
+    if (cloudStatusLabel) cloudStatusLabel.textContent = "Firebase SDK missing";
+    return false;
+  }
+
+  if (!firebaseConfig.apiKey) {
+    console.warn("Cloud sync initialization failed: Firebase config is empty.");
+    if (cloudStatusLabel) cloudStatusLabel.textContent = "Firebase config missing";
     return false;
   }
 
   try {
     firebaseApp = firebase.initializeApp(firebaseConfig);
+    if (!firebase.database) {
+      console.warn("Cloud sync initialization failed: Firebase Database SDK not loaded.");
+      if (cloudStatusLabel) cloudStatusLabel.textContent = "Realtime DB SDK missing";
+      return false;
+    }
     firebaseDb = firebase.database();
+    console.log("Firebase initialized successfully.");
     return true;
   } catch (error) {
     console.warn("Cloud sync initialization failed:", error);
+    if (cloudStatusLabel) cloudStatusLabel.textContent = "Cloud init failed";
     return false;
   }
 }
