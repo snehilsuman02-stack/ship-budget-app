@@ -37,6 +37,7 @@ const claimEditButton = document.getElementById("claim-edit");
 const resetUsersButton = document.getElementById("reset-users");
 const loginScreen = document.getElementById("login-screen");
 const loginForm = document.getElementById("login-form");
+const loginTypeRow = document.querySelector(".login-type-row");
 const loginTypeInputs = document.querySelectorAll('input[name="loginType"]');
 const loginUsername = document.getElementById("login-username");
 const loginPassword = document.getElementById("login-password");
@@ -109,10 +110,12 @@ function handleLoginTypeChange() {
     loginUsername.parentElement.style.display = "grid";
     loginPassword.placeholder = "user";
     loginNote.textContent = 'User login uses username user and password user.';
+    if (loginTypeRow) loginTypeRow.style.display = "none";
   } else {
     loginUsername.parentElement.style.display = "none";
     loginPassword.placeholder = 'Enter your Logistics Officer PIN';
     loginNote.textContent = 'Logistics Officer login uses a settable 4-digit PIN.';
+    if (loginTypeRow) loginTypeRow.style.display = "grid";
   }
 }
 
