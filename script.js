@@ -243,8 +243,10 @@ function isCloudSyncEnabled() {
   return !!firebaseDb;
 }
 
+const cloudPath = "ship-budget-app/shared-state";
+
 function cloudPathForUser(user) {
-  return `ship-budget-app/${encodeURIComponent(user || 'anonymous')}`;
+  return cloudPath;
 }
 
 function saveStateToCloud() {
@@ -321,7 +323,10 @@ function syncCloudData() {
 
 function updateCloudStatus() {
   if (!cloudStatusLabel) return;
-  cloudStatusLabel.textContent = isCloudSyncEnabled() ? "Cloud sync enabled" : "Cloud not configured";
+  if (isCloudSyncEnabled()) {
+    cloudSyncStatus = "Cloud sync enabled";
+  }
+  cloudStatusLabel.textContent = cloudSyncStatus;
 }
 
 function isCurrentUserAdmin() {
@@ -772,7 +777,7 @@ function initializeApp() {
       hideLoginScreen();
       updateDashboard();
       if (isCloudSyncEnabled()) {
-        loadStateFromCloud();
+        syncCloudData();
       }
     }
   });
