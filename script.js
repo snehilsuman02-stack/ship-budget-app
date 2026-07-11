@@ -28,6 +28,9 @@ const reportingDateInput = document.getElementById("reporting-date");
 const userNameInput = document.getElementById("user-name");
 const switchUserButton = document.getElementById("switch-user");
 const exportCsvButton = document.getElementById("export-csv");
+const exportDataButton = document.getElementById("export-data");
+const importDataButton = document.getElementById("import-data");
+const importFileInput = document.getElementById("import-file");
 const printReportButton = document.getElementById("print-report");
 const claimEditButton = document.getElementById("claim-edit");
 const resetUsersButton = document.getElementById("reset-users");
@@ -539,6 +542,74 @@ exportCsvButton.addEventListener("click", () => {
   link.click();
   URL.revokeObjectURL(link.href);
 });
+
+if (exportDataButton) {
+  exportDataButton.addEventListener("click", () => {
+    const exportPayload = {
+      exportedAt: new Date().toISOString(),
+      currentUser: state.currentUser,
+      users: state.users,
+      cdaPlan: state.cdaPlan,
+      asOfDate: state.asOfDate,
+    };
+    const blob = new Blob([JSON.stringify(exportPayload, null, 2)], { type: "application/json" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `${state.currentUser || 'budget'}-data.json`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  });
+}
+
+if (importDataButton && importFileInput) {
+  importDataButton.addEventListener("click", () => {
+    importFileInput.value = "";
+    importFileInput.click();
+  });
+
+  importFileInput.addEventListener("change", (event) => {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (loadEvent) => {
+      try {
+        const imported = JSON.parse(loadEvent.target.result);
+        if (!imported || typeof imported !== 'object' || !imported.users) {
+          throw new Error('Invalid import file.');
+        }
+
+        // Merge imported data into current state.
+        if (imported.users) {
+          state.users = {
+            ...state.users,
+            ...imported.users,
+          };
+        }
+        if (imported.cdaPlan) {
+          state.cdaPlan = {
+            ...state.cdaPlan,
+            ...imported.cdaPlan,
+          };
+        }
+        if (imported.asOfDate) {
+          state.asOfDate = imported.asOfDate;
+        }
+        if (imported.currentUser) {
+          state.currentUser = imported.currentUser;
+        }
+
+        saveState();
+        updateDashboard();
+        alert('Data imported successfully.');
+      } catch (error) {
+        console.error(error);
+        alert('Failed to import JSON data. Please use a valid export file.');
+      }
+    };
+    reader.readAsText(file);
+  });
+}
 
 printReportButton.addEventListener("click", () => {
   window.print();
