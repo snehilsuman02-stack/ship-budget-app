@@ -22,6 +22,7 @@ const amountInput = document.getElementById("expense-amount");
 const noteInput = document.getElementById("expense-note");
 const planPanel = document.getElementById("plan-panel");
 const planFields = document.getElementById("plan-fields");
+const savePlanButton = document.getElementById("save-plan");
 const userSelect = document.getElementById("user-select");
 const reportingDateInput = document.getElementById("reporting-date");
 const userNameInput = document.getElementById("user-name");
@@ -62,6 +63,7 @@ function loadState() {
       ...parsed,
       users: normalizedUsers,
       adminPin: parsed.adminPin || null,
+      cdaPlan: parsed.cdaPlan || { ...defaultBudgetCaps },
       asOfDate: parsed.asOfDate || getDefaultAsOfDate(),
     };
   } catch {
@@ -123,6 +125,7 @@ function createDefaultState() {
     currentUser: null,
     asOfDate: getDefaultAsOfDate(),
     adminPin: null,
+    cdaPlan: { ...defaultBudgetCaps },
     users: {
       user: makeUserData("user"),
       "Logistics Officer": makeUserData("Logistics Officer"),
@@ -192,7 +195,7 @@ function updateDashboard() {
   const asOfDate = getAsOfDate();
   const expensesToDate = filterExpensesToDate(currentUserData.expenses, asOfDate);
   const spendByCategory = getCategorySpend(expensesToDate);
-  const totalBudget = Object.values(currentUserData.plan).reduce((sum, value) => sum + Number(value), 0);
+  const totalBudget = Object.values(state.cdaPlan).reduce((sum, value) => sum + Number(value), 0);
   const totalSpent = expensesToDate.reduce((sum, item) => sum + Number(item.amount), 0);
   const remainingBudget = totalBudget - totalSpent;
   const utilizationRate = totalBudget ? Math.round((totalSpent / totalBudget) * 100) : 0;
@@ -239,7 +242,7 @@ function updateDashboard() {
   renderUserSelection();
   renderPlanForm();
   renderCategoryOptions();
-  renderProgress(spendByCategory, currentUserData.plan);
+  renderProgress(spendByCategory, state.cdaPlan);
   renderDonutChart(spendByCategory);
   renderExpenseList();
 }
@@ -267,7 +270,7 @@ function renderPlanForm() {
   const currentUserExpenses = state.users[state.currentUser] ? state.users[state.currentUser].expenses : [];
   const totalSpent = currentUserExpenses.reduce((sum, expense) => sum + Number(expense.amount), 0);
 
-  planFields.innerHTML = Object.entries(defaultBudgetCaps)
+  planFields.innerHTML = Object.entries(state.cdaPlan)
     .map(([category, amount]) => {
       const spent = currentUserExpenses
         .filter((expense) => expense.category === category)
@@ -279,7 +282,7 @@ function renderPlanForm() {
         <div class="plan-row">
           <div class="plan-meta">
             <span>${category}</span>
-            <strong>${formatCurrency(amount)}</strong>
+            ${isCurrentUserAdmin() ? `<input class="plan-input" data-category="${category}" type="number" min="0" step="1000" value="${amount}" />` : `<strong>${formatCurrency(amount)}</strong>`}
           </div>
           <div class="plan-details">
             <span>${formatCurrency(spent)} spent</span>
@@ -557,6 +560,24 @@ function initializeApp() {
       updateDashboard();
     }
   });
+
+  if (savePlanButton) {
+    savePlanButton.addEventListener("click", () => {
+      if (!isCurrentUserAdmin()) {
+        alert("Only the Logistics Officer can save CDA amounts.");
+        return;
+      }
+
+      const planInputs = planFields.querySelectorAll(".plan-input");
+      planInputs.forEach((input) => {
+        const category = input.dataset.category;
+        state.cdaPlan[category] = Number(input.value) || 0;
+      });
+      saveState();
+      updateDashboard();
+      alert("CDA approved amounts updated.");
+    });
+  }
 }
 
 if (document.readyState === "loading") {

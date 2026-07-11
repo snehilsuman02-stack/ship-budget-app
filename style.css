@@ -244,6 +244,17 @@ body {
   color: #a5f7cc;
   background: rgba(61,220,151,0.15);
 }
+.save-plan-btn {
+  margin-top: 14px;
+  width: 100%;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: linear-gradient(90deg, var(--blue), var(--purple));
+  color: var(--text);
+  font-weight: 700;
+  cursor: pointer;
+}
 
 form { display: grid; gap: 12px; }
 label { display: grid; gap: 6px; color: var(--muted); font-size: 0.95rem; }
