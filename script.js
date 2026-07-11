@@ -35,6 +35,8 @@ const printReportButton = document.getElementById("print-report");
 const claimEditButton = document.getElementById("claim-edit");
 const resetUsersButton = document.getElementById("reset-users");
 const logoutButton = document.getElementById("logout-button");
+const cloudSyncButton = document.getElementById("cloud-sync-btn");
+const cloudStatusLabel = document.getElementById("cloud-status");
 const loginScreen = document.getElementById("login-screen");
 const loginForm = document.getElementById("login-form");
 const loginUsername = document.getElementById("login-username");
@@ -148,6 +150,9 @@ function makeUserData(name) {
 
 function saveState() {
   localStorage.setItem(storageKey, JSON.stringify(state));
+  if (isCloudSyncEnabled()) {
+    saveStateToCloud();
+  }
 }
 
 function mirrorLogisticsExpensesToUser() {
@@ -181,6 +186,120 @@ function getCategorySpend(expenses) {
 
 function getAsOfDate() {
   return reportingDateInput.value || state.asOfDate || getDefaultAsOfDate();
+}
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCZ24BN42MxM40qoR39Ore6veO0F9I7DkU",
+  authDomain: "budget-tracker-f5fae.firebaseapp.com",
+  databaseURL: "https://budget-tracker-f5fae-default-rtdb.firebaseio.com",
+  projectId: "budget-tracker-f5fae",
+  storageBucket: "budget-tracker-f5fae.appspot.com",
+  messagingSenderId: "757492379743",
+  appId: "1:757492379743:web:9b8a6213b57fd11fd12bea",
+};
+
+// Fill these values from your Firebase web app settings to enable cloud sync.
+let firebaseApp = null;
+let firebaseDb = null;
+
+function initCloudSync() {
+  if (!window.firebase || !firebaseConfig.apiKey) {
+    return false;
+  }
+
+  try {
+    firebaseApp = firebase.initializeApp(firebaseConfig);
+    firebaseDb = firebase.database();
+    return true;
+  } catch (error) {
+    console.warn("Cloud sync initialization failed:", error);
+    return false;
+  }
+}
+
+function isCloudSyncEnabled() {
+  return !!firebaseDb;
+}
+
+function cloudPathForUser(user) {
+  return `ship-budget-app/${encodeURIComponent(user || 'anonymous')}`;
+}
+
+function saveStateToCloud() {
+  if (!isCloudSyncEnabled() || !state.currentUser) return Promise.resolve();
+  const data = {
+    currentUser: state.currentUser,
+    users: state.users,
+    cdaPlan: state.cdaPlan,
+    asOfDate: state.asOfDate,
+  };
+  return firebaseDb.ref(cloudPathForUser(state.currentUser)).set(data).catch((error) => {
+    console.error("Cloud save failed:", error);
+  });
+}
+
+function loadStateFromCloud() {
+  if (!isCloudSyncEnabled() || !state.currentUser) return Promise.resolve();
+  return firebaseDb
+    .ref(cloudPathForUser(state.currentUser))
+    .once("value")
+    .then((snapshot) => {
+      const remote = snapshot.val();
+      if (!remote) {
+        alert("No cloud data found for this user.");
+        return remote;
+      }
+      if (remote.users) {
+        state.users = {
+          ...state.users,
+          ...remote.users,
+        };
+      }
+      if (remote.cdaPlan) {
+        state.cdaPlan = {
+          ...state.cdaPlan,
+          ...remote.cdaPlan,
+        };
+      }
+      if (remote.asOfDate) {
+        state.asOfDate = remote.asOfDate;
+      }
+      saveState();
+      updateDashboard();
+      alert("Cloud data loaded successfully.");
+      return remote;
+    })
+    .catch((error) => {
+      console.error("Cloud load failed:", error);
+      alert("Cloud load failed. Check console for details.");
+      return null;
+    });
+}
+
+function syncCloudData() {
+  if (!isCloudSyncEnabled()) {
+    alert("Cloud sync is not configured. Enter Firebase configuration in script.js.");
+    return Promise.resolve();
+  }
+  if (!state.currentUser) {
+    alert("Please log in before syncing to cloud.");
+    return Promise.resolve();
+  }
+  return loadStateFromCloud().then((remote) => {
+    if (!remote) {
+      return saveStateToCloud().then(() => {
+        alert("Local data saved to cloud.");
+      });
+    }
+    return saveStateToCloud().then(() => {
+      alert("Cloud data synced successfully.");
+    });
+  });
+}
+
+function updateCloudStatus() {
+  if (!cloudStatusLabel) return;
+  cloudStatusLabel.textContent = isCloudSyncEnabled() ? "Cloud sync enabled" : "Cloud not configured";
 }
 
 function isCurrentUserAdmin() {
@@ -228,6 +347,7 @@ function updateDashboard() {
     resetUsersButton.style.display = admin ? 'inline-block' : 'none';
   }
 
+  updateCloudStatus();
   const statusPill = document.getElementById("status-pill");
   if (utilizationRate > 85) {
     statusPill.textContent = "Critical";
@@ -620,6 +740,8 @@ function initializeApp() {
   dateInput.value = today;
   reportingDateInput.value = state.asOfDate || today;
   loginNote.textContent = 'Enter credentials for the normal user or Logistics Officer account.';
+  initCloudSync();
+  updateCloudStatus();
   showLoginScreen();
 
   loginSubmit.addEventListener("click", () => {
@@ -627,6 +749,9 @@ function initializeApp() {
     if (success) {
       hideLoginScreen();
       updateDashboard();
+      if (isCloudSyncEnabled()) {
+        loadStateFromCloud();
+      }
     }
   });
 
@@ -659,6 +784,12 @@ function initializeApp() {
     saveState();
     showLoginScreen();
     updateDashboard();
+  }
+
+  if (cloudSyncButton) {
+    cloudSyncButton.addEventListener("click", () => {
+      syncCloudData();
+    });
   }
 
   if (logoutButton) {

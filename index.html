@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Ship Budget Tracker</title>
     <link rel="stylesheet" href="style.css" />
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
   </head>
   <body>
     <div id="login-screen" class="login-screen">
@@ -55,6 +57,10 @@
           </div>
           <div class="user-panel">
             <button id="logout-button" type="button" class="reset-btn">Log out</button>
+          </div>
+          <div class="user-panel cloud-panel">
+            <button id="cloud-sync-btn" type="button" class="claim-btn">Cloud sync</button>
+            <span id="cloud-status" class="cloud-status">Cloud not configured</span>
           </div>
         </div>
       </header>
