@@ -278,7 +278,7 @@ function renderPlanForm() {
       const spent = currentUserExpenses
         .filter((expense) => expense.category === category)
         .reduce((sum, expense) => sum + Number(expense.amount), 0);
-      const percentOfHead = amount ? Math.min(100, Math.round((spent / amount) * 100)) : 0;
+      const percentOfHead = amount ? Math.round((spent / amount) * 100) : 0;
       return `
         <div class="plan-row">
           <div class="plan-meta">
@@ -287,7 +287,7 @@ function renderPlanForm() {
           </div>
           <div class="plan-details">
             <span>${formatCurrency(amount)} approved</span>
-            <span>${formatCurrency(spent)} spent • ${percentOfHead}% of approved head amount</span>
+            <span>${formatCurrency(spent)} spent • ${percentOfHead}% of approved amount</span>
           </div>
         </div>
       `;
