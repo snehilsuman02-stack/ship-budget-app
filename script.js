@@ -264,12 +264,26 @@ function renderCategoryOptions() {
 }
 
 function renderPlanForm() {
+  const totalSpent = Object.values(state.users[state.currentUser] ? state.users[state.currentUser].expenses.reduce((acc, expense) => {
+    acc[expense.category] = (acc[expense.category] || 0) + expense.amount;
+    return acc;
+  }, {}) : {}).reduce((sum, value) => sum + value, 0);
+
   planFields.innerHTML = Object.entries(defaultBudgetCaps)
     .map(([category, amount]) => {
+      const spent = (state.users[state.currentUser] ? state.users[state.currentUser].expenses.filter((expense) => expense.category === category).reduce((sum, expense) => sum + Number(expense.amount), 0) : 0);
+      const percentOfTotal = totalSpent ? Math.round((spent / totalSpent) * 100) : 0;
+      const fillWidth = amount ? Math.min(100, Math.round((spent / amount) * 100)) : 0;
       return `
         <div class="plan-row">
-          <span>${category}</span>
-          <strong>${formatCurrency(amount)}</strong>
+          <div class="plan-meta">
+            <span>${category}</span>
+            <span>${formatCurrency(amount)}</span>
+          </div>
+          <div class="progress-text">${percentOfTotal}% of total expenditure</div>
+          <div class="plan-bar">
+            <div class="plan-fill" style="width: ${fillWidth}%;"></div>
+          </div>
         </div>
       `;
     })
@@ -524,7 +538,7 @@ printReportButton.addEventListener("click", () => {
   window.print();
 });
 
-window.addEventListener("DOMContentLoaded", () => {
+function initializeApp() {
   const today = new Date().toISOString().split("T")[0];
   dateInput.value = today;
   reportingDateInput.value = state.asOfDate || today;
@@ -538,4 +552,10 @@ window.addEventListener("DOMContentLoaded", () => {
       updateDashboard();
     }
   });
-});
+}
+
+if (document.readyState === "loading") {
+  window.addEventListener("DOMContentLoaded", initializeApp);
+} else {
+  initializeApp();
+}

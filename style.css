@@ -181,8 +181,38 @@ body {
 .legend { display: grid; gap: 8px; width: 100%; }
 .legend-item { display: flex; justify-content: space-between; align-items: center; color: var(--muted); font-size: 0.9rem; }
 .swatch { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 8px; }
-.plan-fields { display: grid; gap: 10px; }
-.plan-fields label { display: grid; gap: 6px; color: var(--muted); font-size: 0.9rem; }
+.plan-fields { display: grid; gap: 14px; }
+.plan-row {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 16px;
+  background: rgba(255,255,255,0.02);
+}
+.plan-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text);
+  font-weight: 600;
+}
+.progress-text {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.plan-bar {
+  width: 100%;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.08);
+  overflow: hidden;
+}
+.plan-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--blue), var(--green));
+}
 
 form { display: grid; gap: 12px; }
 label { display: grid; gap: 6px; color: var(--muted); font-size: 0.95rem; }
