@@ -74,6 +74,7 @@ function createDefaultState() {
 function makeUserData(name) {
   return {
     name,
+    role: name === "Captain" ? "admin" : "user",
     plan: { ...defaultBudgetCaps },
     expenses: sampleExpenses.map((item) => ({ ...item })),
   };
@@ -252,6 +253,8 @@ function renderExpenseList() {
     return;
   }
 
+  const isAdmin = state.users[state.currentUser] && state.users[state.currentUser].role === "admin";
+
   list.innerHTML = sorted
     .map((item) => `
       <div class="expense-item">
@@ -261,7 +264,7 @@ function renderExpenseList() {
         </div>
         <div class="expense-actions">
           <span class="expense-amount">${formatCurrency(item.amount)}</span>
-          <button type="button" class="expense-delete" data-id="${item.id}" aria-label="Delete expense">×</button>
+          ${isAdmin ? `<button type="button" class="expense-delete" data-id="${item.id}" aria-label="Delete expense">×</button>` : ``}
         </div>
       </div>
     `)
@@ -269,6 +272,13 @@ function renderExpenseList() {
 }
 
 function deleteExpense(expenseId) {
+  const currentUser = state.currentUser;
+  const isAdmin = state.users[currentUser] && state.users[currentUser].role === "admin";
+  if (!isAdmin) {
+    alert("Only an admin can delete expenses.");
+    return;
+  }
+
   const currentUserData = getCurrentUserData();
   currentUserData.expenses = currentUserData.expenses.filter((item) => item.id !== expenseId);
   saveState();
