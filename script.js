@@ -62,7 +62,7 @@ function getDefaultAsOfDate() {
 
 function createDefaultState() {
   return {
-    currentUser: "Captain",
+    currentUser: "Logistics Officer",
     asOfDate: getDefaultAsOfDate(),
     users: {
       Captain: makeUserData("Captain"),
