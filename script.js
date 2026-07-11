@@ -195,12 +195,12 @@ function updateDashboard() {
   const asOfDate = getAsOfDate();
   const expensesToDate = filterExpensesToDate(currentUserData.expenses, asOfDate);
   const spendByCategory = getCategorySpend(expensesToDate);
-  const totalBudget = Object.values(state.cdaPlan).reduce((sum, value) => sum + Number(value), 0);
+  const totalAllocation = Object.values(defaultBudgetCaps).reduce((sum, value) => sum + Number(value), 0);
   const totalSpent = expensesToDate.reduce((sum, item) => sum + Number(item.amount), 0);
-  const remainingBudget = totalBudget - totalSpent;
-  const utilizationRate = totalBudget ? Math.round((totalSpent / totalBudget) * 100) : 0;
+  const remainingBudget = totalAllocation - totalSpent;
+  const utilizationRate = totalAllocation ? Math.round((totalSpent / totalAllocation) * 100) : 0;
 
-  document.getElementById("total-budget").textContent = formatCurrency(totalBudget);
+  document.getElementById("total-budget").textContent = formatCurrency(totalAllocation);
   document.getElementById("total-spent").textContent = formatCurrency(totalSpent);
   document.getElementById("remaining-budget").textContent = formatCurrency(remainingBudget);
   document.getElementById("utilization-rate").textContent = `${utilizationRate}%`;
@@ -242,7 +242,7 @@ function updateDashboard() {
   renderUserSelection();
   renderPlanForm();
   renderCategoryOptions();
-  renderProgress(spendByCategory, state.cdaPlan);
+  renderProgress(spendByCategory, defaultBudgetCaps);
   renderDonutChart(spendByCategory);
   renderExpenseList();
   if (savePlanButton) {
