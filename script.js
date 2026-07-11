@@ -577,14 +577,21 @@ function initializeApp() {
     });
   }
 
+  function logout() {
+    const confirmed = confirm("Log out and return to login screen?");
+    if (!confirmed) return;
+
+    state.currentUser = null;
+    loginUsername.value = "";
+    loginPassword.value = "";
+    loginNote.textContent = 'Enter credentials for the normal user or Logistics Officer account.';
+    saveState();
+    showLoginScreen();
+    updateDashboard();
+  }
+
   if (logoutButton) {
-    logoutButton.addEventListener("click", () => {
-      const confirmed = confirm("Log out and return to login screen?");
-      if (!confirmed) return;
-      state.currentUser = null;
-      saveState();
-      showLoginScreen();
-    });
+    logoutButton.addEventListener("click", logout);
   }
 }
 
