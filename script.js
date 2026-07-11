@@ -201,17 +201,20 @@ const firebaseConfig = {
 // Fill these values from your Firebase web app settings to enable cloud sync.
 let firebaseApp = null;
 let firebaseDb = null;
+let cloudSyncStatus = "Cloud not configured";
 
 function initCloudSync() {
   if (!window.firebase) {
     console.warn("Cloud sync initialization failed: Firebase SDK not loaded.");
-    if (cloudStatusLabel) cloudStatusLabel.textContent = "Firebase SDK missing";
+    cloudSyncStatus = "Firebase SDK missing";
+    updateCloudStatus();
     return false;
   }
 
   if (!firebaseConfig.apiKey) {
     console.warn("Cloud sync initialization failed: Firebase config is empty.");
-    if (cloudStatusLabel) cloudStatusLabel.textContent = "Firebase config missing";
+    cloudSyncStatus = "Firebase config missing";
+    updateCloudStatus();
     return false;
   }
 
@@ -219,15 +222,19 @@ function initCloudSync() {
     firebaseApp = firebase.initializeApp(firebaseConfig);
     if (!firebase.database) {
       console.warn("Cloud sync initialization failed: Firebase Database SDK not loaded.");
-      if (cloudStatusLabel) cloudStatusLabel.textContent = "Realtime DB SDK missing";
+      cloudSyncStatus = "Realtime DB SDK missing";
+      updateCloudStatus();
       return false;
     }
     firebaseDb = firebase.database();
     console.log("Firebase initialized successfully.");
+    cloudSyncStatus = "Cloud sync enabled";
+    updateCloudStatus();
     return true;
   } catch (error) {
     console.warn("Cloud sync initialization failed:", error);
-    if (cloudStatusLabel) cloudStatusLabel.textContent = "Cloud init failed";
+    cloudSyncStatus = "Cloud init failed";
+    updateCloudStatus();
     return false;
   }
 }
