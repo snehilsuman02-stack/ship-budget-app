@@ -47,15 +47,19 @@ function loadState() {
     if (!parsed || !parsed.users) {
       return createDefaultState();
     }
-    // Ensure only the Logistics Officer (username containing "logistic") is granted admin
+    // Ensure only the Logistics Officer may have admin role
     const normalizedUsers = Object.fromEntries(
-      Object.entries(parsed.users).map(([k, v]) => [k, { ...v, role: isLogisticsName(k) ? 'admin' : 'user' }])
+      Object.entries(parsed.users).map(([k, v]) => {
+        const role = v && v.role === 'admin' && isLogisticsName(k) ? 'admin' : 'user';
+        return [k, { ...v, role }];
+      })
     );
 
     return {
       ...createDefaultState(),
       ...parsed,
       users: normalizedUsers,
+      adminPin: parsed.adminPin || null,
       asOfDate: parsed.asOfDate || getDefaultAsOfDate(),
     };
   } catch {
@@ -72,10 +76,20 @@ function isLogisticsName(name) {
   return /logistic/i.test(String(name));
 }
 
+function setAdminPin(pin) {
+  state.adminPin = String(pin);
+  saveState();
+}
+
+function verifyAdminPin(pin) {
+  return state.adminPin && String(pin) === String(state.adminPin);
+}
+
 function createDefaultState() {
   return {
     currentUser: "Logistics Officer",
     asOfDate: getDefaultAsOfDate(),
+    adminPin: null,
     users: {
       Captain: makeUserData("Captain"),
       Engineer: makeUserData("Engineer"),
@@ -86,7 +100,7 @@ function createDefaultState() {
 function makeUserData(name) {
   return {
     name,
-    role: isLogisticsName(name) ? "admin" : "user",
+    role: "user",
     plan: { ...defaultBudgetCaps },
     expenses: sampleExpenses.map((item) => ({ ...item })),
   };
@@ -331,19 +345,42 @@ expenseList.addEventListener("click", (event) => {
 // Claim edit access (grant admin role to current user)
 if (claimEditButton) {
   claimEditButton.addEventListener('click', () => {
-    const confirmGrant = confirm('Grant edit rights to the current user? Only the Logistics Officer is permitted to claim edit access.');
-    if (!confirmGrant) return;
-    if (!isLogisticsName(state.currentUser)) {
-      alert('Only the Logistics Officer may claim edit access.');
-      return;
-    }
-    if (!state.users[state.currentUser]) state.users[state.currentUser] = makeUserData(state.currentUser);
-    state.users[state.currentUser].role = 'admin';
-    saveState();
-    updateDashboard();
-    alert('Edit rights granted. You can now add/edit/delete entries.');
-  });
-}
+      if (!isLogisticsName(state.currentUser)) {
+        alert('Only the Logistics Officer may claim edit access.');
+        return;
+      }
+
+      if (!state.adminPin) {
+        const pin1 = prompt('Set a new 4-digit admin PIN (numbers only):');
+        if (!pin1 || !/^[0-9]{4}$/.test(pin1)) {
+          alert('PIN must be exactly 4 digits.');
+          return;
+        }
+        const pin2 = prompt('Confirm the 4-digit admin PIN:');
+        if (pin1 !== pin2) {
+          alert('PINs do not match. Try again.');
+          return;
+        }
+        setAdminPin(pin1);
+        if (!state.users[state.currentUser]) state.users[state.currentUser] = makeUserData(state.currentUser);
+        state.users[state.currentUser].role = 'admin';
+        saveState();
+        updateDashboard();
+        alert('Admin PIN set and edit access granted.');
+        return;
+      }
+
+      const attempt = prompt('Enter the 4-digit admin PIN:');
+      if (!attempt) return;
+      if (verifyAdminPin(attempt)) {
+        if (!state.users[state.currentUser]) state.users[state.currentUser] = makeUserData(state.currentUser);
+        state.users[state.currentUser].role = 'admin';
+        saveState();
+        updateDashboard();
+        alert('PIN accepted. Edit access granted.');
+      } else {
+        alert('Incorrect PIN.');
+      }
 
 expenseForm.addEventListener("submit", (event) => {
   event.preventDefault();
