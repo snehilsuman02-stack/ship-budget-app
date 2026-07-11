@@ -360,19 +360,13 @@ function renderExpenseList() {
     .join("");
 }
 
-function syncExpenseAdditionToUser(expense) {
+function syncLogisticsExpensesToUser() {
   if (state.currentUser !== "Logistics Officer") return;
-  const userData = state.users["user"] || (state.users["user"] = makeUserData("user"));
-  if (!userData.expenses.some((item) => item.id === expense.id)) {
-    userData.expenses.push({ ...expense });
+  const adminData = getCurrentUserData();
+  if (!state.users["user"]) {
+    state.users["user"] = makeUserData("user");
   }
-}
-
-function syncExpenseDeletionFromUser(expenseId) {
-  if (state.currentUser !== "Logistics Officer") return;
-  const userData = state.users["user"];
-  if (!userData) return;
-  userData.expenses = userData.expenses.filter((item) => item.id !== expenseId);
+  state.users["user"].expenses = adminData.expenses.map((item) => ({ ...item }));
 }
 
 function deleteExpense(expenseId) {
@@ -385,7 +379,7 @@ function deleteExpense(expenseId) {
 
   const currentUserData = getCurrentUserData();
   currentUserData.expenses = currentUserData.expenses.filter((item) => item.id !== expenseId);
-  syncExpenseDeletionFromUser(expenseId);
+  syncLogisticsExpensesToUser();
   saveState();
   updateDashboard();
 }
@@ -468,7 +462,7 @@ expenseForm.addEventListener("submit", (event) => {
   };
 
   currentUserData.expenses.push(newExpense);
-  syncExpenseAdditionToUser(newExpense);
+  syncLogisticsExpensesToUser();
   saveState();
   updateDashboard();
   expenseForm.reset();
