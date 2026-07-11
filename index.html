@@ -7,6 +7,27 @@
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
+    <div id="login-screen" class="login-screen">
+      <div class="login-panel">
+        <h2>Login to Budget Tracker</h2>
+        <div class="login-type-row">
+          <label><input type="radio" name="loginType" value="user" checked /> User login</label>
+          <label><input type="radio" name="loginType" value="logistics" /> Logistics Officer</label>
+        </div>
+        <form id="login-form">
+          <div class="login-field login-username">
+            <label for="login-username">Username</label>
+            <input id="login-username" type="text" value="user" />
+          </div>
+          <div class="login-field login-password">
+            <label for="login-password">Password</label>
+            <input id="login-password" type="password" />
+          </div>
+          <button id="login-submit" type="button">Log in</button>
+        </form>
+        <p class="login-note">User login uses username <strong>user</strong> and password <strong>user</strong>.</p>
+      </div>
+    </div>
     <div class="app-shell">
       <header class="hero">
         <div>

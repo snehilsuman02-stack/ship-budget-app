@@ -35,6 +35,13 @@ const exportCsvButton = document.getElementById("export-csv");
 const printReportButton = document.getElementById("print-report");
 const claimEditButton = document.getElementById("claim-edit");
 const resetUsersButton = document.getElementById("reset-users");
+const loginScreen = document.getElementById("login-screen");
+const loginForm = document.getElementById("login-form");
+const loginTypeInputs = document.querySelectorAll('input[name="loginType"]');
+const loginUsername = document.getElementById("login-username");
+const loginPassword = document.getElementById("login-password");
+const loginSubmit = document.getElementById("login-submit");
+const loginNote = document.querySelector(".login-note");
 const asOfDateLabel = document.getElementById("as-of-date-label");
 
 function loadState() {
@@ -86,14 +93,94 @@ function verifyAdminPin(pin) {
   return state.adminPin && String(pin) === String(state.adminPin);
 }
 
+function showLoginScreen() {
+  if (loginScreen) loginScreen.style.display = "grid";
+  document.querySelector(".app-shell").style.display = "none";
+}
+
+function hideLoginScreen() {
+  if (loginScreen) loginScreen.style.display = "none";
+  document.querySelector(".app-shell").style.display = "block";
+}
+
+function handleLoginTypeChange() {
+  const type = getLoginType();
+  if (type === "user") {
+    loginUsername.parentElement.style.display = "grid";
+    loginPassword.placeholder = "user";
+    loginNote.textContent = 'User login uses username user and password user.';
+  } else {
+    loginUsername.parentElement.style.display = "none";
+    loginPassword.placeholder = 'Enter your Logistics Officer PIN';
+    loginNote.textContent = 'Logistics Officer login uses a settable 4-digit PIN.';
+  }
+}
+
+function getLoginType() {
+  const selected = Array.from(loginTypeInputs).find((input) => input.checked);
+  return selected ? selected.value : "user";
+}
+
+function loginAsUser() {
+  const username = loginUsername.value.trim();
+  const password = loginPassword.value;
+  if (username !== "user" || password !== "user") {
+    alert("Invalid user credentials.");
+    return false;
+  }
+  state.currentUser = "user";
+  state.users["user"] = state.users["user"] || makeUserData("user");
+  saveState();
+  return true;
+}
+
+function loginAsLogistics() {
+  const password = loginPassword.value;
+  if (!isLogisticsName("Logistics Officer")) {
+    alert("Invalid Logistics Officer account.");
+    return false;
+  }
+  if (!state.adminPin) {
+    const pin1 = password || prompt("Set a new 4-digit Logistics Officer PIN:");
+    if (!pin1 || !/^[0-9]{4}$/.test(pin1)) {
+      alert("PIN must be exactly 4 digits.");
+      return false;
+    }
+    const pin2 = prompt("Confirm the 4-digit PIN:");
+    if (pin1 !== pin2) {
+      alert("PINs do not match. Try again.");
+      return false;
+    }
+    setAdminPin(pin1);
+    state.currentUser = "Logistics Officer";
+    state.users["Logistics Officer"] = state.users["Logistics Officer"] || makeUserData("Logistics Officer");
+    state.users["Logistics Officer"].role = "admin";
+    saveState();
+    return true;
+  }
+  if (!password) {
+    alert("Enter the Logistics Officer PIN.");
+    return false;
+  }
+  if (!verifyAdminPin(password)) {
+    alert("Incorrect PIN.");
+    return false;
+  }
+  state.currentUser = "Logistics Officer";
+  state.users["Logistics Officer"] = state.users["Logistics Officer"] || makeUserData("Logistics Officer");
+  state.users["Logistics Officer"].role = "admin";
+  saveState();
+  return true;
+}
+
 function createDefaultState() {
   return {
-    currentUser: "Logistics Officer",
+    currentUser: null,
     asOfDate: getDefaultAsOfDate(),
     adminPin: null,
     users: {
-      Captain: makeUserData("Captain"),
-      Engineer: makeUserData("Engineer"),
+      user: makeUserData("user"),
+      "Logistics Officer": makeUserData("Logistics Officer"),
     },
   };
 }
@@ -483,5 +570,16 @@ window.addEventListener("DOMContentLoaded", () => {
   const today = new Date().toISOString().split("T")[0];
   dateInput.value = today;
   reportingDateInput.value = state.asOfDate || today;
-  updateDashboard();
+  handleLoginTypeChange();
+  showLoginScreen();
+
+  loginTypeInputs.forEach((input) => input.addEventListener("change", handleLoginTypeChange));
+  loginSubmit.addEventListener("click", () => {
+    const type = getLoginType();
+    const success = type === "user" ? loginAsUser() : loginAsLogistics();
+    if (success) {
+      hideLoginScreen();
+      updateDashboard();
+    }
+  });
 });
