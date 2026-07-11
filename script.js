@@ -10,12 +10,7 @@ const defaultBudgetCaps = {
 };
 
 const palette = ["#4f8cff", "#ffb24c", "#3ddc97", "#9b7bff", "#ff6161", "#f472b6"];
-const sampleExpenses = [
-  { id: 1, date: "2026-07-01", category: "Fuel", amount: 42000, note: "Port departure refuel" },
-  { id: 2, date: "2026-07-03", category: "Maintenance", amount: 18500, note: "Engine inspection" },
-  { id: 3, date: "2026-07-05", category: "Provisions", amount: 12000, note: "Fresh water and stores" },
-  { id: 4, date: "2026-07-08", category: "Crew", amount: 24000, note: "Wages and support" },
-];
+const sampleExpenses = [];
 
 const storageKey = "ship-budget-app-state";
 let state = loadState();
