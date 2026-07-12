@@ -102,22 +102,34 @@
               <div class="action-row">
                 <button id="export-csv" type="button">Export CSV</button>
                 <button id="export-data" type="button">Export JSON</button>
-                  <button id="show-json" type="button">Show JSON</button>
-                  <label id="import-data" for="import-file" class="claim-btn">Import JSON</label>
-                  <button id="print-report" type="button">Print report</button>
+                <button id="show-json" type="button">Show JSON</button>
+                <button id="show-import-panel" type="button">Paste JSON</button>
+                <label id="import-data" for="import-file" class="claim-btn">Import JSON</label>
+                <button id="print-report" type="button">Print report</button>
+              </div>
+              <input id="import-file" type="file" accept=".json,application/json,text/json,*/*" class="hidden-file-input" />
+              <div id="json-export-panel" class="json-export-panel hidden">
+                <div class="json-export-header">
+                  <span>Export JSON data</span>
+                  <button id="close-json-panel" type="button">Close</button>
                 </div>
-                <input id="import-file" type="file" accept=".json,application/json,text/json,*/*" class="hidden-file-input" />
-                <div id="json-export-panel" class="json-export-panel hidden">
-                  <div class="json-export-header">
-                    <span>Export JSON data</span>
-                    <button id="close-json-panel" type="button">Close</button>
-                  </div>
-                  <textarea id="json-export-text" readonly placeholder="Exported JSON data will appear here."></textarea>
-                  <div class="action-row">
-                    <button id="copy-json" type="button">Copy JSON</button>
-                    <button id="download-json" type="button">Download JSON</button>
-                  </div>
+                <textarea id="json-export-text" readonly placeholder="Exported JSON data will appear here."></textarea>
+                <div class="action-row">
+                  <button id="copy-json" type="button">Copy JSON</button>
+                  <button id="download-json" type="button">Download JSON</button>
                 </div>
+              </div>
+              <div id="json-import-panel" class="json-export-panel hidden">
+                <div class="json-export-header">
+                  <span>Paste JSON to import</span>
+                  <button id="close-import-panel" type="button">Close</button>
+                </div>
+                <textarea id="json-import-text" placeholder="Paste exported JSON data here."></textarea>
+                <div class="action-row">
+                  <button id="apply-json-import" type="button">Import from text</button>
+                </div>
+                <p class="import-notice">If your phone file picker cannot find downloads, use export then paste the JSON here.</p>
+              </div>
             </div>
             <div class="chart-wrap">
               <div id="donut-chart" class="donut-chart"></div>
