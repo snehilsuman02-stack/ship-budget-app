@@ -195,6 +195,15 @@ body {
 .legend { display: grid; gap: 8px; width: 100%; }
 .legend-item { display: flex; justify-content: space-between; align-items: center; color: var(--muted); font-size: 0.9rem; }
 .swatch { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 8px; }
+.month-breakup-card { grid-column: 1 / -1; }
+.month-breakup-wrap { overflow-x: auto; }
+.month-breakup-table table { width: 100%; border-collapse: collapse; }
+.month-breakup-table th,
+.month-breakup-table td { padding: 10px 12px; border: 1px solid rgba(255,255,255,0.08); text-align: right; }
+.month-breakup-table th { background: rgba(255,255,255,0.03); color: var(--muted); font-weight: 700; }
+.month-breakup-table td:first-child { text-align: left; color: var(--text); font-weight: 600; }
+.month-breakup-table tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+.month-breakup-table tfoot td { font-weight: 700; }
 .plan-fields { display: grid; gap: 14px; }
 .plan-row {
   display: grid;

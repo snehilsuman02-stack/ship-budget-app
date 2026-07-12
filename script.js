@@ -217,6 +217,90 @@ function getAsOfDate() {
   return reportingDateInput.value || state.asOfDate || getDefaultAsOfDate();
 }
 
+function getYearMonths(year) {
+  return Array.from({ length: 12 }, (_, index) => {
+    const month = index + 1;
+    return `${year}-${String(month).padStart(2, '0')}`;
+  });
+}
+
+function formatMonthLabel(yearMonth) {
+  const [year, month] = yearMonth.split('-');
+  return `${new Date(year, Number(month) - 1).toLocaleString('default', { month: 'short' })}`;
+}
+
+function buildHeadMonthBreakup(expenses, year) {
+  const months = getYearMonths(year);
+  const breakdown = Object.keys(defaultBudgetCaps).reduce((acc, category) => {
+    acc[category] = months.reduce((monthMap, monthKey) => {
+      monthMap[monthKey] = 0;
+      return monthMap;
+    }, {});
+    return acc;
+  }, {});
+
+  expenses.forEach((expense) => {
+    const expenseDate = new Date(expense.date);
+    if (expenseDate.getFullYear() !== year) return;
+    const monthKey = `${expenseDate.getFullYear()}-${String(expenseDate.getMonth() + 1).padStart(2, '0')}`;
+    const category = expense.category || 'Uncategorized';
+    if (!breakdown[category]) return;
+    breakdown[category][monthKey] += Number(expense.amount) || 0;
+  });
+
+  return breakdown;
+}
+
+function renderMonthBreakup(breakdown, months) {
+  const container = document.getElementById('month-breakup-table');
+  if (!container) return;
+  const rows = Object.entries(breakdown).map(([category, monthData]) => {
+    const cells = months.map((monthKey) => `
+      <td>${formatCurrency(monthData[monthKey] || 0)}</td>
+    `).join('');
+    const total = Object.values(monthData).reduce((sum, value) => sum + Number(value), 0);
+    return `
+      <tr>
+        <td>${category}</td>
+        ${cells}
+        <td>${formatCurrency(total)}</td>
+      </tr>
+    `;
+  }).join('');
+
+  const headerCells = months.map((monthKey) => `<th>${formatMonthLabel(monthKey)}</th>`).join('');
+  const totalByMonth = months.map((monthKey) => {
+    const sum = Object.values(breakdown).reduce((monthSum, monthData) => monthSum + Number(monthData[monthKey] || 0), 0);
+    return `<td>${formatCurrency(sum)}</td>`;
+  }).join('');
+  const yearlyTotal = Object.values(breakdown).reduce((sum, monthData) => sum + Object.values(monthData).reduce((mSum, value) => mSum + Number(value), 0), 0);
+
+  container.innerHTML = `
+    <div class="month-breakup-header">Year ${months[0].split('-')[0]} month-wise expenditure by head</div>
+    <div class="month-breakup-inner">
+      <table>
+        <thead>
+          <tr>
+            <th>Head</th>
+            ${headerCells}
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td>Grand Total</td>
+            ${totalByMonth}
+            <td>${formatCurrency(yearlyTotal)}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  `;
+}
+
 const firebaseConfig = {
   apiKey: "AIzaSyCZ24BN42MxM40qoR39Ore6veO0F9I7DkU",
   authDomain: "budget-tracker-f5fae.firebaseapp.com",
@@ -473,6 +557,9 @@ function updateDashboard() {
   const totalSpent = expensesToDate.reduce((sum, item) => sum + Number(item.amount), 0);
   const remainingBudget = totalAllocation - totalSpent;
   const utilizationRate = totalAllocation ? Math.round((totalSpent / totalAllocation) * 100) : 0;
+  const year = new Date(asOfDate).getFullYear();
+  const months = getYearMonths(year);
+  const monthBreakup = buildHeadMonthBreakup(currentUserData.expenses, year);
 
   document.getElementById("total-budget").textContent = formatCurrency(totalAllocation);
   document.getElementById("total-spent").textContent = formatCurrency(totalSpent);
@@ -517,6 +604,7 @@ function updateDashboard() {
   renderUserSelection();
   renderPlanForm();
   renderCategoryOptions();
+  renderMonthBreakup(monthBreakup, months);
   renderProgress(spendByCategory, defaultBudgetCaps, currentMonthSpendByCategory, lastYearMonthSpendByCategory, asOfDate);
   renderDonutChart(spendByCategory);
   renderExpenseList();
