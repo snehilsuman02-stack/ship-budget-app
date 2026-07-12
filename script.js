@@ -11,6 +11,7 @@ const defaultBudgetCaps = {
 
 const palette = ["#4f8cff", "#ffb24c", "#3ddc97", "#9b7bff", "#ff6161", "#f472b6"];
 const sampleExpenses = [];
+const TOTAL_ALLOCATION_AMOUNT = Object.values(defaultBudgetCaps).reduce((sum, value) => sum + Number(value || 0), 0);
 
 const storageKey = "ship-budget-app-state";
 const deviceIdStorageKey = "ship-budget-app-device-id";
@@ -891,7 +892,8 @@ function updateDashboard() {
   const lastYearMonthExpenses = filterExpensesForMonth(currentUserData.expenses, lastYearMonthDate);
   const currentMonthSpendByCategory = getCategorySpend(currentMonthExpenses);
   const lastYearMonthSpendByCategory = getCategorySpend(lastYearMonthExpenses);
-  const totalAllocation = Object.values(defaultBudgetCaps).reduce((sum, value) => sum + Number(value), 0);
+  // Total allocation stays constant for the app lifecycle.
+  const totalAllocation = TOTAL_ALLOCATION_AMOUNT;
   const totalSpent = expensesToDate.reduce((sum, item) => sum + Number(item.amount), 0);
   const remainingBudget = totalAllocation - totalSpent;
   const utilizationRate = totalAllocation ? Math.round((totalSpent / totalAllocation) * 100) : 0;
@@ -1009,6 +1011,10 @@ function renderProgress(spendByCategory, plan, currentMonthSpendByCategory, last
     const diffText = diff >= 0 ? `↑ ${formatCurrency(diff)} vs last year` : `↓ ${formatCurrency(Math.abs(diff))} vs last year`;
     const percent = cap ? Math.min(100, Math.round((spent / cap) * 100)) : 0;
     const pending = cap - spent;
+    const hasCdaAmount = cap > 0;
+    const budgetLine = hasCdaAmount
+      ? (pending >= 0 ? `Pending ${formatCurrency(pending)} until date` : `Over budget by ${formatCurrency(Math.abs(pending))}`)
+      : "CDA approved amount pending from LOGO";
     const monthName = new Date(asOfDate).toLocaleString('default', { month: 'long' });
     const combinedSameMonth = monthSpent + lastYearSpent;
     const item = document.createElement("div");
@@ -1019,7 +1025,7 @@ function renderProgress(spendByCategory, plan, currentMonthSpendByCategory, last
         <span>${formatCurrency(spent)} / ${formatCurrency(cap)}</span>
       </div>
       <div class="progress-detail">
-        ${pending >= 0 ? `Pending ${formatCurrency(pending)} until date` : `Over budget by ${formatCurrency(Math.abs(pending))}`}
+        ${budgetLine}
       </div>
       <div class="progress-detail month-compare">
         <span>Current ${monthName}: <strong>${formatCurrency(monthSpent)}</strong></span>
