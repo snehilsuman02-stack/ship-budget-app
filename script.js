@@ -193,7 +193,6 @@ if (loginForm) {
     if (success) {
       hideLoginScreen();
       updateDashboard();
-      if (isCloudSyncEnabled() && firebaseAuthReady) syncCloudData();
     }
   });
 }
@@ -206,7 +205,6 @@ if (loginSubmit) {
       if (success) {
         hideLoginScreen();
         updateDashboard();
-        if (isCloudSyncEnabled() && firebaseAuthReady) syncCloudData();
       }
     });
   }
@@ -671,7 +669,7 @@ function syncCloudData() {
 
   return waitForCloudAuth()
     .then(() => {
-      return loadStateFromCloud().then((remote) => {
+      return loadStateFromCloud({ silent: true }).then((remote) => {
         if (!remote) {
           return saveStateToCloud()
             .then(() => {
@@ -1284,7 +1282,6 @@ function initializeApp() {
     if (ok) {
       hideLoginScreen();
       updateDashboard();
-      if (isCloudSyncEnabled() && firebaseAuthReady) syncCloudData();
       pushCloudLog('Auto-login succeeded', 'info');
       return;
     } else {
@@ -1301,9 +1298,6 @@ function initializeApp() {
       if (success) {
         hideLoginScreen();
         updateDashboard();
-        if (isCloudSyncEnabled() && firebaseAuthReady) {
-          syncCloudData();
-        }
       }
     });
   }
