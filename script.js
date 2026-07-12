@@ -30,11 +30,16 @@ const switchUserButton = document.getElementById("switch-user");
 const exportCsvButton = document.getElementById("export-csv");
 const exportDataButton = document.getElementById("export-data");
 const showJsonButton = document.getElementById("show-json");
+const showImportPanelButton = document.getElementById("show-import-panel");
 const copyJsonButton = document.getElementById("copy-json");
 const downloadJsonButton = document.getElementById("download-json");
 const closeJsonPanelButton = document.getElementById("close-json-panel");
 const jsonExportPanel = document.getElementById("json-export-panel");
 const jsonExportText = document.getElementById("json-export-text");
+const closeImportPanelButton = document.getElementById("close-import-panel");
+const jsonImportPanel = document.getElementById("json-import-panel");
+const jsonImportText = document.getElementById("json-import-text");
+const applyJsonImportButton = document.getElementById("apply-json-import");
 const importDataButton = document.getElementById("import-data");
 const importFileInput = document.getElementById("import-file");
 const printReportButton = document.getElementById("print-report");
@@ -982,49 +987,64 @@ if (downloadJsonButton) {
   });
 }
 
-if (importFileInput) {
-  importFileInput.addEventListener("change", (event) => {
-    const file = event.target.files && event.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (loadEvent) => {
-      try {
-        const imported = JSON.parse(loadEvent.target.result);
-        if (!imported || typeof imported !== 'object' || !imported.users) {
-          throw new Error('Invalid import file.');
-        }
-
-        // Merge imported data into current state.
-        if (imported.users) {
-          state.users = {
-            ...state.users,
-            ...imported.users,
-          };
-        }
-        if (imported.cdaPlan) {
-          state.cdaPlan = {
-            ...state.cdaPlan,
-            ...imported.cdaPlan,
-          };
-        }
-        if (imported.asOfDate) {
-          state.asOfDate = imported.asOfDate;
-        }
-        if (imported.currentUser) {
-          state.currentUser = imported.currentUser;
-        }
-
-        saveState();
-        updateDashboard();
-        alert('Data imported successfully.');
-      } catch (error) {
-        console.error(error);
-        alert('Failed to import JSON data. Please use a valid export file.');
-      }
-    };
-    reader.readAsText(file);
+if (showImportPanelButton && jsonImportPanel) {
+  showImportPanelButton.addEventListener("click", () => {
+    jsonImportPanel.classList.remove("hidden");
   });
+}
+
+if (closeImportPanelButton && jsonImportPanel) {
+  closeImportPanelButton.addEventListener("click", () => {
+    jsonImportPanel.classList.add("hidden");
+  });
+}
+
+if (applyJsonImportButton && jsonImportText) {
+  applyJsonImportButton.addEventListener("click", () => {
+    try {
+      const imported = JSON.parse(jsonImportText.value);
+      applyImportedPayload(imported);
+      saveState();
+      updateDashboard();
+      jsonImportText.value = "";
+      jsonImportPanel.classList.add("hidden");
+      alert('Data imported successfully from pasted JSON.');
+    } catch (error) {
+      console.error(error);
+      alert('Failed to import pasted JSON. Please make sure it is valid export data.');
+    }
+  });
+}
+
+if (importDataButton && importFileInput) {
+  importDataButton.addEventListener("click", (event) => {
+    event.preventDefault();
+    importFileInput.click();
+  });
+}
+
+function applyImportedPayload(imported) {
+  if (!imported || typeof imported !== 'object' || !imported.users) {
+    throw new Error('Invalid import file.');
+  }
+
+  state.users = {
+    ...state.users,
+    ...imported.users,
+  };
+
+  if (imported.cdaPlan) {
+    state.cdaPlan = {
+      ...state.cdaPlan,
+      ...imported.cdaPlan,
+    };
+  }
+  if (imported.asOfDate) {
+    state.asOfDate = imported.asOfDate;
+  }
+  if (imported.currentUser) {
+    state.currentUser = imported.currentUser;
+  }
 }
 
 if (importFileInput) {
@@ -1036,30 +1056,7 @@ if (importFileInput) {
     reader.onload = (loadEvent) => {
       try {
         const imported = JSON.parse(loadEvent.target.result);
-        if (!imported || typeof imported !== 'object' || !imported.users) {
-          throw new Error('Invalid import file.');
-        }
-
-        // Merge imported data into current state.
-        if (imported.users) {
-          state.users = {
-            ...state.users,
-            ...imported.users,
-          };
-        }
-        if (imported.cdaPlan) {
-          state.cdaPlan = {
-            ...state.cdaPlan,
-            ...imported.cdaPlan,
-          };
-        }
-        if (imported.asOfDate) {
-          state.asOfDate = imported.asOfDate;
-        }
-        if (imported.currentUser) {
-          state.currentUser = imported.currentUser;
-        }
-
+        applyImportedPayload(imported);
         saveState();
         updateDashboard();
         alert('Data imported successfully.');

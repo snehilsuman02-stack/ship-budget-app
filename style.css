@@ -202,6 +202,11 @@ body {
 .json-export-actions button {
   padding: 10px 14px;
 }
+.import-notice {
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
 .progress-list { display: grid; gap: 18px; }
 .progress-item { display: grid; gap: 12px; padding: 12px 0; }
 .progress-label { display: flex; justify-content: space-between; align-items: center; color: var(--muted); font-size: 1rem; }
