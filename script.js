@@ -13,6 +13,7 @@ const palette = ["#4f8cff", "#ffb24c", "#3ddc97", "#9b7bff", "#ff6161", "#f472b6
 const sampleExpenses = [];
 
 const storageKey = "ship-budget-app-state";
+const deviceIdStorageKey = "ship-budget-app-device-id";
 let state = loadState();
 
 const expenseForm = document.getElementById("expense-form");
@@ -85,64 +86,28 @@ function loadState() {
       adminPin: parsed.adminPin || null,
       cdaPlan: parsed.cdaPlan || { ...defaultBudgetCaps },
       asOfDate: parsed.asOfDate || getDefaultAsOfDate(),
-      updatedAt: parsed.updatedAt || null,
+      updatedAt: Number.isFinite(Number(parsed.updatedAt)) ? Number(parsed.updatedAt) : null,
+      cloudVersion: Number.isFinite(Number(parsed.cloudVersion)) ? Number(parsed.cloudVersion) : 0,
+      lastWriter: parsed.lastWriter || null,
     };
   } catch {
     return createDefaultState();
   }
 }
 
-function toTimestamp(value) {
-  if (!value) return 0;
-  const ms = Date.parse(value);
-  return Number.isFinite(ms) ? ms : 0;
+function getOrCreateDeviceId() {
+  try {
+    const existing = localStorage.getItem(deviceIdStorageKey);
+    if (existing) return existing;
+    const generated = "device-" + Math.random().toString(36).slice(2, 10) + "-" + Date.now();
+    localStorage.setItem(deviceIdStorageKey, generated);
+    return generated;
+  } catch {
+    return "device-ephemeral";
+  }
 }
 
-function getStateMetrics(source) {
-  const users = source && source.users && typeof source.users === "object" ? source.users : {};
-  const cdaPlan = source && source.cdaPlan && typeof source.cdaPlan === "object" ? source.cdaPlan : {};
-
-  const expenseCount = Object.values(users).reduce((sum, userData) => {
-    if (!userData || !Array.isArray(userData.expenses)) return sum;
-    return sum + userData.expenses.length;
-  }, 0);
-
-  const nonZeroPlanCount = Object.values(cdaPlan).reduce((sum, amount) => {
-    return sum + (Number(amount) > 0 ? 1 : 0);
-  }, 0);
-
-  return { expenseCount, nonZeroPlanCount };
-}
-
-function shouldUseRemoteState(remote) {
-  const remoteTs = toTimestamp(remote && remote.updatedAt);
-  const localTs = toTimestamp(state && state.updatedAt);
-  const remoteMetrics = getStateMetrics(remote);
-  const localMetrics = getStateMetrics(state);
-
-  const remoteLooksEmpty = remoteMetrics.expenseCount === 0 && remoteMetrics.nonZeroPlanCount === 0;
-  const localHasData = localMetrics.expenseCount > 0 || localMetrics.nonZeroPlanCount > 0;
-  if (remoteLooksEmpty && localHasData) {
-    return false;
-  }
-
-  if (remoteTs && localTs) {
-    return remoteTs >= localTs;
-  }
-  if (remoteTs && !localTs) {
-    return true;
-  }
-  if (!remoteTs && localTs) {
-    // Legacy cloud snapshots without timestamp should not replace newer local state.
-    return false;
-  }
-
-  if (remoteMetrics.expenseCount < localMetrics.expenseCount) {
-    return false;
-  }
-
-  return true;
-}
+const deviceId = getOrCreateDeviceId();
 
 function pushCloudLog(message, level = 'info') {
   try {
@@ -285,7 +250,9 @@ function createDefaultState() {
   return {
     currentUser: null,
     asOfDate: getDefaultAsOfDate(),
-    updatedAt: new Date().toISOString(),
+    updatedAt: Date.now(),
+    cloudVersion: 0,
+    lastWriter: null,
     adminPin: null,
     cdaPlan: { ...defaultBudgetCaps },
     users: {
@@ -304,12 +271,15 @@ function makeUserData(name) {
   };
 }
 
-function saveState({ skipCloud = false } = {}) {
+function saveState({ skipCloud = false, source = "local" } = {}) {
   mirrorLogisticsExpensesToUser();
-  state.updatedAt = new Date().toISOString();
+  if (source === "local") {
+    state.updatedAt = Date.now();
+    state.lastWriter = deviceId;
+  }
   localStorage.setItem(storageKey, JSON.stringify(state));
-  if (!skipCloud && isCloudSyncEnabled()) {
-    saveStateToCloud();
+  if (!skipCloud && source === "local" && isCloudSyncEnabled()) {
+    queueCloudWrite();
   }
 }
 
@@ -479,6 +449,8 @@ let firebaseAuthPromise = Promise.resolve();
 let cloudSyncStatus = "Cloud not configured";
 let cloudRealtimeRef = null;
 let cloudRealtimeHandler = null;
+let cloudWriteInFlight = false;
+let cloudWriteQueued = false;
 
 function stopRealtimeCloudListener() {
   if (cloudRealtimeRef && cloudRealtimeHandler) {
@@ -504,16 +476,12 @@ function startRealtimeCloudListener() {
       return;
     }
 
-    if (!shouldUseRemoteState(remote)) {
-      pushCloudLog('Skipped remote update because local data is newer or richer.', 'warn');
-      return;
-    }
-
     applyRemoteState(remote);
     if (!state.users[state.currentUser]) {
       state.currentUser = Object.keys(state.users)[0] || state.currentUser;
     }
-    saveState({ skipCloud: true });
+    saveState({ skipCloud: true, source: "remote" });
+    pushCloudLog('Realtime update applied from cloud.', 'info');
     updateDashboard();
   };
 
@@ -552,7 +520,12 @@ function initCloudSync() {
   }
 
   try {
-    firebaseApp = firebase.initializeApp(firebaseConfig);
+    if (firebase.apps && firebase.apps.length > 0) {
+      firebaseApp = firebase.app();
+      pushCloudLog('Reusing existing Firebase app instance.', 'info');
+    } else {
+      firebaseApp = firebase.initializeApp(firebaseConfig);
+    }
     if (!firebase.database) {
       console.warn("Cloud sync initialization failed: Firebase Database SDK not loaded.");
       cloudSyncStatus = "Realtime DB SDK missing";
@@ -659,28 +632,93 @@ function applyRemoteState(remote) {
   if (remote.adminPin) {
     state.adminPin = remote.adminPin;
   }
-  if (remote.updatedAt) {
-    state.updatedAt = remote.updatedAt;
+  state.updatedAt = Number.isFinite(Number(remote.updatedAt)) ? Number(remote.updatedAt) : state.updatedAt;
+  state.cloudVersion = Number.isFinite(Number(remote.cloudVersion)) ? Number(remote.cloudVersion) : state.cloudVersion;
+  state.lastWriter = remote.lastWriter || state.lastWriter;
+}
+
+function buildCloudPayload(nextVersion) {
+  return {
+    users: JSON.parse(JSON.stringify(state.users)),
+    cdaPlan: { ...state.cdaPlan },
+    asOfDate: state.asOfDate,
+    adminPin: state.adminPin,
+    updatedAt: Date.now(),
+    cloudVersion: nextVersion,
+    lastWriter: deviceId,
+  };
+}
+
+function queueCloudWrite() {
+  cloudWriteQueued = true;
+  processCloudWriteQueue();
+}
+
+function processCloudWriteQueue() {
+  if (cloudWriteInFlight || !cloudWriteQueued) {
+    return;
   }
+  cloudWriteQueued = false;
+  cloudWriteInFlight = true;
+
+  saveStateToCloud()
+    .catch((error) => {
+      console.error("Cloud write queue error:", error);
+      pushCloudLog('Cloud write queue error: ' + (error && error.message ? error.message : error), 'error');
+    })
+    .finally(() => {
+      cloudWriteInFlight = false;
+      if (cloudWriteQueued) {
+        processCloudWriteQueue();
+      }
+    });
 }
 
 function saveStateToCloud() {
-  if (!firebaseDb) return Promise.resolve();
+  if (!firebaseDb || !state.currentUser) return Promise.resolve(false);
   return waitForCloudAuth()
     .then(() => {
-      if (!isCloudSyncEnabled()) {
+      if (!isCloudSyncEnabled() || !firebaseAuthReady) {
         return Promise.reject(new Error("Cloud auth not ready."));
       }
-      const data = {
-        users: state.users,
-        cdaPlan: state.cdaPlan,
-        asOfDate: state.asOfDate,
-        adminPin: state.adminPin,
-        updatedAt: state.updatedAt || new Date().toISOString(),
-      };
       const path = cloudPathForUser(state.currentUser);
-      console.log("Saving cloud state at:", path, data);
-      return firebaseDb.ref(path).set(data);
+      const ref = firebaseDb.ref(path);
+      const baseVersion = Number(state.cloudVersion || 0);
+
+      return new Promise((resolve, reject) => {
+        ref.transaction(
+          (current) => {
+            const currentVersion = Number((current && current.cloudVersion) || 0);
+            if (current && currentVersion !== baseVersion) {
+              // Abort when local base is stale; realtime listener/load will reconcile.
+              return;
+            }
+            return buildCloudPayload(currentVersion + 1);
+          },
+          (error, committed, snapshot) => {
+            if (error) {
+              reject(error);
+              return;
+            }
+
+            const remote = snapshot && snapshot.val ? snapshot.val() : null;
+            if (remote && typeof remote === "object") {
+              applyRemoteState(remote);
+              saveState({ skipCloud: true, source: "remote" });
+            }
+
+            if (!committed) {
+              pushCloudLog('Skipped cloud write because a newer cloud version already exists.', 'warn');
+              resolve(false);
+              return;
+            }
+
+            pushCloudLog('Cloud write committed at version ' + (state.cloudVersion || 0) + '.', 'info');
+            resolve(true);
+          },
+          false
+        );
+      });
     })
     .catch((error) => {
       console.error("Cloud save failed:", error);
@@ -722,15 +760,6 @@ function loadStateFromCloud({ silent = false } = {}) {
         return null;
       }
 
-      if (!shouldUseRemoteState(remote)) {
-        pushCloudLog('Remote snapshot is older/empty. Keeping local state and restoring cloud from local.', 'warn');
-        saveStateToCloud();
-        if (!silent) {
-          alert("Cloud had older or empty data. Kept your local data and restored cloud from this device.");
-        }
-        return null;
-      }
-
       console.log(`Cloud state loaded from ${source}:`, remote);
       if (typeof applyRemoteState === "function") {
         applyRemoteState(remote);
@@ -752,11 +781,11 @@ function loadStateFromCloud({ silent = false } = {}) {
       if (!state.users[state.currentUser]) {
         state.currentUser = Object.keys(state.users)[0] || state.currentUser;
       }
-      saveState({ skipCloud: true });
+      saveState({ skipCloud: true, source: "remote" });
       updateDashboard();
       if (!silent) alert("Cloud data loaded successfully.");
       if (source && source !== path) {
-        saveStateToCloud();
+        queueCloudWrite();
       }
       return remote;
     })
