@@ -398,7 +398,7 @@ const firebaseConfig = {
 };
 
 // Set to true only when Firebase project is active and configured.
-const CLOUD_SYNC_ENABLED = false;
+const CLOUD_SYNC_ENABLED = true;
 
 // Fill these values from your Firebase web app settings to enable cloud sync.
 let firebaseApp = null;
