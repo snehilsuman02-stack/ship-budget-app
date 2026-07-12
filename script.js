@@ -148,9 +148,10 @@ function hideLoginScreen() {
 }
 
 function login() {
-  const username = (loginUsername && loginUsername.value) ? loginUsername.value.trim() : '';
-  const password = (loginPassword && loginPassword.value) ? loginPassword.value : '';
-  pushCloudLog('Login attempt: ' + username, 'info');
+  const rawUsername = (loginUsername && loginUsername.value) ? loginUsername.value.trim() : '';
+  const username = rawUsername.toLowerCase();
+  const password = (loginPassword && loginPassword.value) ? loginPassword.value.trim() : '';
+  pushCloudLog('Login attempt: ' + rawUsername, 'info');
   if (loginError) {
     loginError.classList.add('hidden');
     loginError.textContent = '';
@@ -166,7 +167,7 @@ function login() {
     try { hideLoginScreen(); updateDashboard(); if (firebaseDb) syncCloudData(); } catch (e) { console.warn('Post-login UI update failed', e); }
     return true;
   }
-  if (username === "LOGO" && password === "1234") {
+  if ((username === "logo" || username === "logistics officer" || username === "logistic officer") && password === "1234") {
     state.currentUser = "Logistics Officer";
     state.users["Logistics Officer"] = state.users["Logistics Officer"] || makeUserData("Logistics Officer");
     state.users["Logistics Officer"].role = "admin";
@@ -177,7 +178,7 @@ function login() {
     try { hideLoginScreen(); updateDashboard(); if (firebaseDb) syncCloudData(); } catch (e) { console.warn('Post-login UI update failed', e); }
     return true;
   }
-  pushCloudLog('Login failed for user: ' + username, 'warn');
+  pushCloudLog('Login failed for user: ' + rawUsername, 'warn');
   if (loginError) {
     loginError.textContent = 'Invalid username or password. Try user/user or LOGO/1234';
     loginError.classList.remove('hidden');
@@ -626,6 +627,7 @@ function loadStateFromCloud({ silent = false } = {}) {
         alert("Cloud load failed: " + message + ". Check console for full details.");
       }
       return null;
+    });
     });
 }
 
