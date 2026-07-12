@@ -11,7 +11,8 @@ const defaultBudgetCaps = {
 
 const palette = ["#4f8cff", "#ffb24c", "#3ddc97", "#9b7bff", "#ff6161", "#f472b6"];
 const sampleExpenses = [];
-const TOTAL_ALLOCATION_AMOUNT = Object.values(defaultBudgetCaps).reduce((sum, value) => sum + Number(value || 0), 0);
+// Fixed ship allocation (constant) independent of CDA head-wise approvals.
+const TOTAL_ALLOCATION_AMOUNT = 18000000;
 
 const storageKey = "ship-budget-app-state";
 const deviceIdStorageKey = "ship-budget-app-device-id";
@@ -1003,15 +1004,16 @@ function renderProgress(spendByCategory, plan, currentMonthSpendByCategory, last
   container.innerHTML = "";
 
   Object.entries(defaultBudgetCaps).forEach(([category, defaultCap], index) => {
-    const cap = Number(plan[category] ?? defaultCap);
+    const headAllocation = Number(defaultCap || 0);
+    const cdaApproved = Number(plan[category] ?? 0);
     const spent = spendByCategory[category] || 0;
     const monthSpent = currentMonthSpendByCategory[category] || 0;
     const lastYearSpent = lastYearMonthSpendByCategory[category] || 0;
     const diff = monthSpent - lastYearSpent;
     const diffText = diff >= 0 ? `↑ ${formatCurrency(diff)} vs last year` : `↓ ${formatCurrency(Math.abs(diff))} vs last year`;
-    const percent = cap ? Math.min(100, Math.round((spent / cap) * 100)) : 0;
-    const pending = cap - spent;
-    const hasCdaAmount = cap > 0;
+    const percent = headAllocation ? Math.min(100, Math.round((spent / headAllocation) * 100)) : 0;
+    const pending = cdaApproved - spent;
+    const hasCdaAmount = cdaApproved > 0;
     const budgetLine = hasCdaAmount
       ? (pending >= 0 ? `Pending ${formatCurrency(pending)} until date` : `Over budget by ${formatCurrency(Math.abs(pending))}`)
       : "CDA approved amount pending from LOGO";
@@ -1022,8 +1024,9 @@ function renderProgress(spendByCategory, plan, currentMonthSpendByCategory, last
     item.innerHTML = `
       <div class="progress-label">
         <span>${category}</span>
-        <span>${formatCurrency(spent)} / ${formatCurrency(cap)}</span>
+        <span>${formatCurrency(spent)} / ${formatCurrency(headAllocation)}</span>
       </div>
+      <div class="progress-detail">CDA approved: ${formatCurrency(cdaApproved)}</div>
       <div class="progress-detail">
         ${budgetLine}
       </div>
