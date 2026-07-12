@@ -325,7 +325,13 @@ const firebaseConfig = {
 // Fill these values from your Firebase web app settings to enable cloud sync.
 let firebaseApp = null;
 let firebaseDb = null;
+let firebaseAuthReady = false;
+let firebaseAuthPromise = Promise.resolve();
 let cloudSyncStatus = "Cloud not configured";
+
+function waitForCloudAuth() {
+  return firebaseAuthPromise;
+}
 
 function initCloudSync() {
   if (!window.firebase) {
@@ -344,17 +350,6 @@ function initCloudSync() {
 
   try {
     firebaseApp = firebase.initializeApp(firebaseConfig);
-    if (firebase.auth) {
-      firebase.auth().onAuthStateChanged((user) => {
-        if (!user) {
-          firebase.auth().signInAnonymously().catch((authError) => {
-            console.error("Cloud auth failed:", authError);
-            cloudSyncStatus = "Cloud auth failed";
-            updateCloudStatus();
-          });
-        }
-      });
-    }
     if (!firebase.database) {
       console.warn("Cloud sync initialization failed: Firebase Database SDK not loaded.");
       cloudSyncStatus = "Realtime DB SDK missing";
@@ -362,9 +357,35 @@ function initCloudSync() {
       return false;
     }
     firebaseDb = firebase.database();
+
+    if (firebase.auth) {
+      cloudSyncStatus = "Cloud auth pending";
+      updateCloudStatus();
+      firebaseAuthPromise = new Promise((resolve, reject) => {
+        firebase.auth().onAuthStateChanged((user) => {
+          if (user) {
+            firebaseAuthReady = true;
+            console.log("Firebase auth ready.");
+            cloudSyncStatus = "Cloud sync enabled";
+            updateCloudStatus();
+            resolve(user);
+          } else {
+            firebase.auth().signInAnonymously().catch((authError) => {
+              console.error("Cloud auth failed:", authError);
+              cloudSyncStatus = "Cloud auth failed";
+              updateCloudStatus();
+              reject(authError);
+            });
+          }
+        });
+      });
+    } else {
+      firebaseAuthReady = true;
+      cloudSyncStatus = "Cloud sync enabled";
+      updateCloudStatus();
+    }
+
     console.log("Firebase initialized successfully.");
-    cloudSyncStatus = "Cloud sync enabled";
-    updateCloudStatus();
     return true;
   } catch (error) {
     console.warn("Cloud sync initialization failed:", error);
@@ -433,25 +454,38 @@ function applyRemoteState(remote) {
 }
 
 function saveStateToCloud() {
-  if (!isCloudSyncEnabled()) return Promise.resolve();
-  const data = {
-    users: state.users,
-    cdaPlan: state.cdaPlan,
-    asOfDate: state.asOfDate,
-    adminPin: state.adminPin,
-  };
-  const path = cloudPathForUser(state.currentUser);
-  console.log("Saving cloud state at:", path, data);
-  return firebaseDb.ref(path).set(data).catch((error) => {
-    console.error("Cloud save failed:", error);
-  });
+  if (!firebaseDb) return Promise.resolve();
+  return waitForCloudAuth()
+    .then(() => {
+      if (!isCloudSyncEnabled()) {
+        return Promise.reject(new Error("Cloud auth not ready."));
+      }
+      const data = {
+        users: state.users,
+        cdaPlan: state.cdaPlan,
+        asOfDate: state.asOfDate,
+        adminPin: state.adminPin,
+      };
+      const path = cloudPathForUser(state.currentUser);
+      console.log("Saving cloud state at:", path, data);
+      return firebaseDb.ref(path).set(data);
+    })
+    .catch((error) => {
+      console.error("Cloud save failed:", error);
+      throw error;
+    });
 }
 
 function loadStateFromCloud({ silent = false } = {}) {
-  if (!isCloudSyncEnabled()) return Promise.resolve();
-  const path = cloudPathForUser(state.currentUser);
-  console.log("Loading cloud state from: ", path);
-  return firebaseDb
+  if (!firebaseDb) return Promise.resolve();
+  return waitForCloudAuth()
+    .then(() => {
+      if (!isCloudSyncEnabled()) {
+        return Promise.reject(new Error("Cloud auth not ready."));
+      }
+      const path = cloudPathForUser(state.currentUser);
+      console.log("Loading cloud state from: ", path);
+      return firebaseDb
     .ref(path)
     .once("value")
     .then((snapshot) => {
@@ -508,7 +542,8 @@ function loadStateFromCloud({ silent = false } = {}) {
       cloudSyncStatus = "Cloud load failed";
       updateCloudStatus();
       if (!silent) {
-        alert("Cloud load failed: " + (error && error.message ? error.message : "unknown error") + ". Check console for full details.");
+        const message = error && error.message ? error.message : "unknown error";
+        alert("Cloud load failed: " + message + ". Check console for full details.");
       }
       return null;
     });
@@ -516,23 +551,41 @@ function loadStateFromCloud({ silent = false } = {}) {
 
 function syncCloudData() {
   console.log("cloud sync click fired", { enabled: isCloudSyncEnabled(), currentUser: state.currentUser });
-  if (!isCloudSyncEnabled()) {
-    alert("Cloud sync is not configured. Enter Firebase configuration in script.js.");
+  if (!firebaseDb) {
+    const msg = "Cloud sync is not configured. Enter Firebase configuration in script.js.";
+    console.warn(msg);
+    alert(msg);
     return Promise.resolve();
   }
   if (!state.currentUser) {
-    alert("Please log in before syncing to cloud.");
+    const msg = "Please log in before syncing to cloud.";
+    console.warn(msg);
+    alert(msg);
     return Promise.resolve();
   }
-  return loadStateFromCloud().then((remote) => {
-    if (!remote) {
-      return saveStateToCloud().then(() => {
-        alert("Local data saved to cloud.");
+
+  return waitForCloudAuth()
+    .then(() => {
+      return loadStateFromCloud().then((remote) => {
+        if (!remote) {
+          return saveStateToCloud()
+            .then(() => {
+              alert("Local data saved to cloud.");
+            })
+            .catch((error) => {
+              console.error("Cloud save failed:", error);
+              alert("Cloud save failed: " + (error && error.message ? error.message : "unknown error") + ". Check console.");
+            });
+        }
+        alert("Cloud data loaded and applied successfully.");
+        return Promise.resolve();
       });
-    }
-    alert("Cloud data loaded and applied successfully.");
-    return Promise.resolve();
-  });
+    })
+    .catch((error) => {
+      console.error("Cloud sync failed due to auth:", error);
+      const message = error && error.message ? error.message : "unknown error";
+      alert("Cloud sync failed: " + message + ". Check console for details.");
+    });
 }
 
 function updateCloudStatus() {
@@ -1081,8 +1134,12 @@ function initializeApp() {
   initCloudSync();
   updateCloudStatus();
 
-  if (state.currentUser && isCloudSyncEnabled()) {
-    loadStateFromCloud({ silent: true });
+  if (state.currentUser && firebaseDb) {
+    waitForCloudAuth()
+      .then(() => loadStateFromCloud({ silent: true }))
+      .catch((authError) => {
+        console.warn("Cloud auth was not ready on startup:", authError);
+      });
   }
 
   showLoginScreen();
