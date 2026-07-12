@@ -55,6 +55,7 @@ const loginForm = document.getElementById("login-form");
 const loginUsername = document.getElementById("login-username");
 const loginPassword = document.getElementById("login-password");
 const loginSubmit = document.getElementById("login-submit");
+const loginError = document.getElementById("login-error");
 const loginNote = document.querySelector(".login-note");
 const asOfDateLabel = document.getElementById("as-of-date-label");
 
@@ -147,12 +148,20 @@ function hideLoginScreen() {
 }
 
 function login() {
-  const username = loginUsername.value.trim();
-  const password = loginPassword.value;
+  const username = (loginUsername && loginUsername.value) ? loginUsername.value.trim() : '';
+  const password = (loginPassword && loginPassword.value) ? loginPassword.value : '';
+  pushCloudLog('Login attempt: ' + username, 'info');
+  if (loginError) {
+    loginError.classList.add('hidden');
+    loginError.textContent = '';
+  }
+
   if (username === "user" && password === "user") {
     state.currentUser = "user";
     state.users["user"] = state.users["user"] || makeUserData("user");
     saveState({ skipCloud: true });
+    pushCloudLog('Login success: user', 'info');
+    if (loginError) { loginError.classList.add('hidden'); }
     return true;
   }
   if (username === "LOGO" && password === "1234") {
@@ -161,10 +170,17 @@ function login() {
     state.users["Logistics Officer"].role = "admin";
     mirrorLogisticsExpensesToUser();
     saveState({ skipCloud: true });
+    pushCloudLog('Login success: Logistics Officer', 'info');
+    if (loginError) { loginError.classList.add('hidden'); }
     return true;
   }
   pushCloudLog('Login failed for user: ' + username, 'warn');
-  alert("Invalid username or password. Try: user/user or LOGO/1234");
+  if (loginError) {
+    loginError.textContent = 'Invalid username or password. Try user/user or LOGO/1234';
+    loginError.classList.remove('hidden');
+  } else {
+    alert("Invalid username or password. Try: user/user or LOGO/1234");
+  }
   return false;
 }
 
