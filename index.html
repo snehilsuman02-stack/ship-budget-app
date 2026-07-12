@@ -13,7 +13,7 @@
     <div id="login-screen" class="login-screen">
       <div class="login-panel">
         <h2>Login to Budget Tracker</h2>
-        <form id="login-form">
+        <form id="login-form" onsubmit="return false;">
           <div class="login-field login-username">
             <label for="login-username">Username</label>
             <input id="login-username" type="text" value="user" />
@@ -22,7 +22,7 @@
             <label for="login-password">Password</label>
             <input id="login-password" type="password" />
           </div>
-          <button id="login-submit" type="submit">Log in</button>
+          <button id="login-submit" type="button">Log in</button>
         </form>
         <p id="login-error" class="login-error hidden"></p>
         <p class="login-note">Enter credentials for the normal user or Logistics Officer account.</p>
@@ -199,5 +199,14 @@
     </div>
 
     <script src="script.js"></script>
+    <script>
+      // If main script fails, keep the user informed on the login panel.
+      window.addEventListener('error', function () {
+        var note = document.querySelector('.login-note');
+        if (note) {
+          note.textContent = 'App script failed to load. Refresh with Ctrl+F5, then try again.';
+        }
+      });
+    </script>
   </body>
 </html>
