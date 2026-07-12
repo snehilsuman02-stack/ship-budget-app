@@ -545,6 +545,11 @@ function initCloudSync() {
               pushCloudLog('Firebase auth ready', 'info');
             cloudSyncStatus = "Cloud sync enabled";
             updateCloudStatus();
+            if (state.currentUser) {
+              loadStateFromCloud({ silent: true }).finally(() => {
+                startRealtimeCloudListener();
+              });
+            }
             resolve(user);
           } else {
             firebase.auth().signInAnonymously().catch((authError) => {
@@ -731,7 +736,7 @@ function loadStateFromCloud({ silent = false } = {}) {
   if (!firebaseDb) return Promise.resolve();
   return waitForCloudAuth()
     .then(() => {
-      if (!isCloudSyncEnabled()) {
+      if (!isCloudSyncEnabled() || !firebaseAuthReady) {
         return Promise.reject(new Error("Cloud auth not ready."));
       }
       const path = cloudPathForUser(state.currentUser);
@@ -742,19 +747,19 @@ function loadStateFromCloud({ silent = false } = {}) {
     .then((snapshot) => {
       const remote = snapshot.val();
       if (remote) {
-        return { remote, source: path };
+        return { remote, source: path, path };
       }
       const legacyPath = legacyCloudPathForUser(state.currentUser);
       if (legacyPath === path) {
-        return { remote: null, source: null };
+        return { remote: null, source: null, path };
       }
       console.log("Cloud state not found at shared path, checking legacy path:", legacyPath);
       return firebaseDb.ref(legacyPath).once("value").then((legacySnapshot) => {
         const legacyRemote = legacySnapshot.val();
-        return { remote: legacyRemote, source: legacyRemote ? legacyPath : null };
+        return { remote: legacyRemote, source: legacyRemote ? legacyPath : null, path };
       });
     })
-    .then(({ remote, source }) => {
+    .then(({ remote, source, path }) => {
           if (!remote) {
         if (!silent) alert("No cloud data found at: " + path);
         return null;
