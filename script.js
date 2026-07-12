@@ -109,14 +109,11 @@ function pushCloudLog(message, level = 'info') {
 window.addEventListener('error', (ev) => {
   const msg = ev && ev.message ? ev.message : String(ev);
   pushCloudLog('Runtime error: ' + msg, 'error');
-  // also show alert so it's visible when DevTools is closed
-  alert('Runtime error: ' + msg);
 });
 
 window.addEventListener('unhandledrejection', (ev) => {
   const reason = ev && ev.reason ? ev.reason : String(ev);
   pushCloudLog('Unhandled promise rejection: ' + (reason && reason.message ? reason.message : reason), 'error');
-  alert('Unhandled promise rejection: ' + (reason && reason.message ? reason.message : reason));
 });
 
 function getDefaultAsOfDate() {
@@ -164,7 +161,7 @@ function login() {
     pushCloudLog('Login success: user', 'info');
     if (loginError) { loginError.classList.add('hidden'); }
     // Ensure UI transitions happen even if callers forget to handle the result
-    try { hideLoginScreen(); updateDashboard(); if (firebaseDb) syncCloudData(); } catch (e) { console.warn('Post-login UI update failed', e); }
+    try { hideLoginScreen(); updateDashboard(); if (isCloudSyncEnabled() && firebaseAuthReady) syncCloudData(); } catch (e) { console.warn('Post-login UI update failed', e); }
     return true;
   }
   if ((username === "logo" || username === "logistics officer" || username === "logistic officer") && password === "1234") {
@@ -175,7 +172,7 @@ function login() {
     saveState({ skipCloud: true });
     pushCloudLog('Login success: Logistics Officer', 'info');
     if (loginError) { loginError.classList.add('hidden'); }
-    try { hideLoginScreen(); updateDashboard(); if (firebaseDb) syncCloudData(); } catch (e) { console.warn('Post-login UI update failed', e); }
+    try { hideLoginScreen(); updateDashboard(); if (isCloudSyncEnabled() && firebaseAuthReady) syncCloudData(); } catch (e) { console.warn('Post-login UI update failed', e); }
     return true;
   }
   pushCloudLog('Login failed for user: ' + rawUsername, 'warn');
@@ -196,7 +193,7 @@ if (loginForm) {
     if (success) {
       hideLoginScreen();
       updateDashboard();
-      if (firebaseDb) syncCloudData();
+      if (isCloudSyncEnabled() && firebaseAuthReady) syncCloudData();
     }
   });
 }
@@ -207,7 +204,7 @@ if (loginSubmit) {
     if (success) {
       hideLoginScreen();
       updateDashboard();
-      if (firebaseDb) syncCloudData();
+      if (isCloudSyncEnabled() && firebaseAuthReady) syncCloudData();
     }
   });
 }
@@ -448,7 +445,7 @@ function initCloudSync() {
     if (firebase.auth) {
       cloudSyncStatus = "Cloud auth pending";
       updateCloudStatus();
-      firebaseAuthPromise = new Promise((resolve, reject) => {
+      firebaseAuthPromise = new Promise((resolve) => {
         firebase.auth().onAuthStateChanged((user) => {
           if (user) {
             firebaseAuthReady = true;
@@ -461,9 +458,10 @@ function initCloudSync() {
             firebase.auth().signInAnonymously().catch((authError) => {
               console.error("Cloud auth failed:", authError);
               pushCloudLog('Cloud auth failed: ' + (authError && authError.message ? authError.message : authError), 'error');
-              cloudSyncStatus = "Cloud auth failed";
+              firebaseAuthReady = false;
+              cloudSyncStatus = "Cloud auth unavailable (local mode)";
               updateCloudStatus();
-              reject(authError);
+              resolve(null);
             });
           }
         });
@@ -660,6 +658,11 @@ function syncCloudData() {
     const msg = "Please log in before syncing to cloud.";
     console.warn(msg);
     alert(msg);
+    return Promise.resolve();
+  }
+  if (!firebaseAuthReady) {
+    cloudSyncStatus = "Cloud auth unavailable (local mode)";
+    updateCloudStatus();
     return Promise.resolve();
   }
 
@@ -1254,7 +1257,10 @@ function initializeApp() {
 
   if (state.currentUser && firebaseDb) {
     waitForCloudAuth()
-      .then(() => loadStateFromCloud({ silent: true }))
+      .then((user) => {
+        if (!user) return null;
+        return loadStateFromCloud({ silent: true });
+      })
       .catch((authError) => {
         console.warn("Cloud auth was not ready on startup:", authError);
       });
@@ -1273,7 +1279,7 @@ function initializeApp() {
     if (ok) {
       hideLoginScreen();
       updateDashboard();
-      if (firebaseDb) syncCloudData();
+      if (isCloudSyncEnabled() && firebaseAuthReady) syncCloudData();
       pushCloudLog('Auto-login succeeded', 'info');
       return;
     } else {
@@ -1288,7 +1294,7 @@ function initializeApp() {
     if (success) {
       hideLoginScreen();
       updateDashboard();
-      if (isCloudSyncEnabled()) {
+      if (isCloudSyncEnabled() && firebaseAuthReady) {
         syncCloudData();
       }
     }
