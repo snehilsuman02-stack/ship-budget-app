@@ -397,6 +397,9 @@ const firebaseConfig = {
   appId: "1:757492379743:web:9b8a6213b57fd11fd12bea",
 };
 
+// Set to true only when Firebase project is active and configured.
+const CLOUD_SYNC_ENABLED = false;
+
 // Fill these values from your Firebase web app settings to enable cloud sync.
 let firebaseApp = null;
 let firebaseDb = null;
@@ -409,6 +412,15 @@ function waitForCloudAuth() {
 }
 
 function initCloudSync() {
+  if (!CLOUD_SYNC_ENABLED) {
+    firebaseDb = null;
+    firebaseAuthReady = true;
+    firebaseAuthPromise = Promise.resolve(null);
+    cloudSyncStatus = "Cloud sync disabled (local mode)";
+    updateCloudStatus();
+    return false;
+  }
+
   if (!window.firebase) {
     console.warn("Cloud sync initialization failed: Firebase SDK not loaded.");
     cloudSyncStatus = "Firebase SDK missing";
@@ -475,7 +487,7 @@ function initCloudSync() {
 }
 
 function isCloudSyncEnabled() {
-  return !!firebaseDb;
+  return CLOUD_SYNC_ENABLED && !!firebaseDb;
 }
 
 const cloudPath = "ship-budget-app/shared-state";
@@ -633,6 +645,11 @@ function loadStateFromCloud({ silent = false } = {}) {
 
 function syncCloudData() {
   console.log("cloud sync click fired", { enabled: isCloudSyncEnabled(), currentUser: state.currentUser });
+  if (!CLOUD_SYNC_ENABLED) {
+    cloudSyncStatus = "Cloud sync disabled (local mode)";
+    updateCloudStatus();
+    return Promise.resolve();
+  }
   if (!firebaseDb) {
     const msg = "Cloud sync is not configured. Enter Firebase configuration in script.js.";
     console.warn(msg);
@@ -676,6 +693,12 @@ function updateCloudStatus() {
     cloudSyncStatus = "Cloud sync enabled";
   }
   cloudStatusLabel.textContent = cloudSyncStatus;
+  if (cloudSyncButton) {
+    cloudSyncButton.disabled = !CLOUD_SYNC_ENABLED;
+  }
+  if (cloudDebugButton) {
+    cloudDebugButton.disabled = !CLOUD_SYNC_ENABLED;
+  }
 }
 
 function isCurrentUserAdmin() {
