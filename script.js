@@ -123,6 +123,18 @@ function pushCloudLog(message, level = 'info') {
   }
 }
 
+function logSyncEvent(event, details = "", level = "info") {
+  const text = details ? `${event}: ${details}` : event;
+  if (level === "error") {
+    console.error("[SYNC]", text);
+  } else if (level === "warn") {
+    console.warn("[SYNC]", text);
+  } else {
+    console.log("[SYNC]", text);
+  }
+  pushCloudLog(text, level);
+}
+
 // Global error handlers to surface startup/runtime errors in the UI
 window.addEventListener('error', (ev) => {
   const msg = ev && ev.message ? ev.message : String(ev);
@@ -481,7 +493,7 @@ function startRealtimeCloudListener() {
       state.currentUser = Object.keys(state.users)[0] || state.currentUser;
     }
     saveState({ skipCloud: true, source: "remote" });
-    pushCloudLog('Realtime update applied from cloud.', 'info');
+    logSyncEvent("Cloud update received", "Realtime snapshot applied");
     updateDashboard();
   };
 
@@ -522,9 +534,10 @@ function initCloudSync() {
   try {
     if (firebase.apps && firebase.apps.length > 0) {
       firebaseApp = firebase.app();
-      pushCloudLog('Reusing existing Firebase app instance.', 'info');
+      logSyncEvent("Firebase initialized", "Reused existing app instance");
     } else {
       firebaseApp = firebase.initializeApp(firebaseConfig);
+      logSyncEvent("Firebase initialized", "Created new app instance");
     }
     if (!firebase.database) {
       console.warn("Cloud sync initialization failed: Firebase Database SDK not loaded.");
@@ -548,6 +561,9 @@ function initCloudSync() {
             if (state.currentUser) {
               loadStateFromCloud({ silent: true }).finally(() => {
                 startRealtimeCloudListener();
+                if (cloudWriteQueued) {
+                  processCloudWriteQueue();
+                }
               });
             }
             resolve(user);
@@ -569,8 +585,7 @@ function initCloudSync() {
       updateCloudStatus();
     }
 
-    console.log("Firebase initialized successfully.");
-    pushCloudLog('Firebase initialized successfully', 'info');
+    logSyncEvent("Firebase initialized", "Realtime Database connected");
     return true;
   } catch (error) {
     console.warn("Cloud sync initialization failed:", error);
@@ -659,156 +674,143 @@ function queueCloudWrite() {
   processCloudWriteQueue();
 }
 
-function processCloudWriteQueue() {
+async function processCloudWriteQueue() {
   if (cloudWriteInFlight || !cloudWriteQueued) {
     return;
   }
   cloudWriteQueued = false;
   cloudWriteInFlight = true;
 
-  saveStateToCloud()
-    .catch((error) => {
-      console.error("Cloud write queue error:", error);
-      pushCloudLog('Cloud write queue error: ' + (error && error.message ? error.message : error), 'error');
-    })
-    .finally(() => {
-      cloudWriteInFlight = false;
-      if (cloudWriteQueued) {
-        processCloudWriteQueue();
-      }
-    });
+  try {
+    await saveStateToCloud();
+  } catch (error) {
+    const message = error && error.message ? error.message : String(error);
+    logSyncEvent("Sync failed", "Queued cloud write failed - " + message, "error");
+    if (isCloudSyncEnabled() && state.currentUser) {
+      // Retry once auth is ready again or next local edit occurs.
+      cloudWriteQueued = true;
+    }
+  } finally {
+    cloudWriteInFlight = false;
+    if (cloudWriteQueued) {
+      processCloudWriteQueue();
+    }
+  }
 }
 
-function saveStateToCloud() {
-  if (!firebaseDb || !state.currentUser) return Promise.resolve(false);
-  return waitForCloudAuth()
-    .then(() => {
-      if (!isCloudSyncEnabled() || !firebaseAuthReady) {
-        return Promise.reject(new Error("Cloud auth not ready."));
-      }
-      const path = cloudPathForUser(state.currentUser);
-      const ref = firebaseDb.ref(path);
-      const baseVersion = Number(state.cloudVersion || 0);
+async function saveStateToCloud() {
+  if (!firebaseDb || !state.currentUser) return false;
 
-      return new Promise((resolve, reject) => {
-        ref.transaction(
-          (current) => {
-            const currentVersion = Number((current && current.cloudVersion) || 0);
-            if (current && currentVersion !== baseVersion) {
-              // Abort when local base is stale; realtime listener/load will reconcile.
-              return;
-            }
-            return buildCloudPayload(currentVersion + 1);
-          },
-          (error, committed, snapshot) => {
-            if (error) {
-              reject(error);
-              return;
-            }
+  try {
+    await waitForCloudAuth();
+    if (!isCloudSyncEnabled() || !firebaseAuthReady) {
+      throw new Error("Cloud auth not ready.");
+    }
 
-            const remote = snapshot && snapshot.val ? snapshot.val() : null;
-            if (remote && typeof remote === "object") {
-              applyRemoteState(remote);
-              saveState({ skipCloud: true, source: "remote" });
-            }
+    const path = cloudPathForUser(state.currentUser);
+    const ref = firebaseDb.ref(path);
+    const baseVersion = Number(state.cloudVersion || 0);
 
-            if (!committed) {
-              pushCloudLog('Skipped cloud write because a newer cloud version already exists.', 'warn');
-              resolve(false);
-              return;
-            }
+    const writeCommitted = await new Promise((resolve, reject) => {
+      ref.transaction(
+        (current) => {
+          const currentVersion = Number((current && current.cloudVersion) || 0);
+          if (current && currentVersion !== baseVersion) {
+            // Abort when local base is stale; listener/load will reconcile.
+            return;
+          }
+          return buildCloudPayload(currentVersion + 1);
+        },
+        (error, committed, snapshot) => {
+          if (error) {
+            reject(error);
+            return;
+          }
 
-            pushCloudLog('Cloud write committed at version ' + (state.cloudVersion || 0) + '.', 'info');
-            resolve(true);
-          },
-          false
-        );
-      });
-    })
-    .catch((error) => {
-      console.error("Cloud save failed:", error);
-      pushCloudLog('Cloud save failed: ' + (error && error.message ? error.message : error), 'error');
-      throw error;
+          const remote = snapshot && snapshot.val ? snapshot.val() : null;
+          if (remote && typeof remote === "object") {
+            applyRemoteState(remote);
+            saveState({ skipCloud: true, source: "remote" });
+          }
+
+          resolve(Boolean(committed));
+        },
+        false
+      );
     });
+
+    if (!writeCommitted) {
+      logSyncEvent("Data saved", "Skipped stale local write because cloud has newer version", "warn");
+      return false;
+    }
+
+    logSyncEvent("Data saved", "Cloud write committed at version " + (state.cloudVersion || 0));
+    return true;
+  } catch (error) {
+    const message = error && error.message ? error.message : String(error);
+    logSyncEvent("Sync failed", "Cloud save failed - " + message, "error");
+    throw error;
+  }
 }
 
-function loadStateFromCloud({ silent = false } = {}) {
-  if (!firebaseDb) return Promise.resolve();
-  return waitForCloudAuth()
-    .then(() => {
-      if (!isCloudSyncEnabled() || !firebaseAuthReady) {
-        return Promise.reject(new Error("Cloud auth not ready."));
-      }
-      const path = cloudPathForUser(state.currentUser);
-      console.log("Loading cloud state from: ", path);
-      return firebaseDb
-    .ref(path)
-    .once("value")
-    .then((snapshot) => {
-      const remote = snapshot.val();
-      if (remote) {
-        return { remote, source: path, path };
-      }
+async function loadStateFromCloud({ silent = false } = {}) {
+  if (!firebaseDb || !state.currentUser) return null;
+
+  try {
+    await waitForCloudAuth();
+    if (!isCloudSyncEnabled() || !firebaseAuthReady) {
+      throw new Error("Cloud auth not ready.");
+    }
+
+    const path = cloudPathForUser(state.currentUser);
+    const snapshot = await firebaseDb.ref(path).once("value");
+    let remote = snapshot.val();
+    let source = path;
+
+    if (!remote) {
       const legacyPath = legacyCloudPathForUser(state.currentUser);
-      if (legacyPath === path) {
-        return { remote: null, source: null, path };
-      }
-      console.log("Cloud state not found at shared path, checking legacy path:", legacyPath);
-      return firebaseDb.ref(legacyPath).once("value").then((legacySnapshot) => {
-        const legacyRemote = legacySnapshot.val();
-        return { remote: legacyRemote, source: legacyRemote ? legacyPath : null, path };
-      });
-    })
-    .then(({ remote, source, path }) => {
-          if (!remote) {
-        if (!silent) alert("No cloud data found at: " + path);
-        return null;
-      }
-
-      console.log(`Cloud state loaded from ${source}:`, remote);
-      if (typeof applyRemoteState === "function") {
-        applyRemoteState(remote);
+      if (legacyPath !== path) {
+        const legacySnapshot = await firebaseDb.ref(legacyPath).once("value");
+        remote = legacySnapshot.val();
+        source = remote ? legacyPath : null;
       } else {
-        console.warn("applyRemoteState not defined; falling back to manual merge.");
-        if (remote.users) {
-          mergeRemoteUsers(remote.users);
-        }
-        if (remote.cdaPlan && typeof remote.cdaPlan === "object") {
-          state.cdaPlan = { ...state.cdaPlan, ...remote.cdaPlan };
-        }
-        if (remote.asOfDate) {
-          state.asOfDate = remote.asOfDate;
-        }
-        if (remote.adminPin) {
-          state.adminPin = remote.adminPin;
-        }
+        source = null;
       }
-      if (!state.users[state.currentUser]) {
-        state.currentUser = Object.keys(state.users)[0] || state.currentUser;
-      }
-      saveState({ skipCloud: true, source: "remote" });
-      updateDashboard();
-      if (!silent) alert("Cloud data loaded successfully.");
-      if (source && source !== path) {
-        queueCloudWrite();
-      }
-      return remote;
-    })
-    .catch((error) => {
-      console.error("Cloud load failed:", error);
-      cloudSyncStatus = "Cloud load failed";
-      updateCloudStatus();
-      if (!silent) {
-        const message = error && error.message ? error.message : "unknown error";
-        pushCloudLog('Cloud load failed: ' + message, 'error');
-        alert("Cloud load failed: " + message + ". Check console for full details.");
-      }
+    }
+
+    if (!remote) {
+      if (!silent) alert("No cloud data found at: " + path);
       return null;
-    });
-    });
+    }
+
+    applyRemoteState(remote);
+    if (!state.users[state.currentUser]) {
+      state.currentUser = Object.keys(state.users)[0] || state.currentUser;
+    }
+    saveState({ skipCloud: true, source: "remote" });
+    updateDashboard();
+    logSyncEvent("Data loaded", "Applied cloud data from " + (source || path));
+
+    if (!silent) {
+      alert("Cloud data loaded successfully.");
+    }
+    if (source && source !== path) {
+      queueCloudWrite();
+    }
+    return remote;
+  } catch (error) {
+    const message = error && error.message ? error.message : "unknown error";
+    cloudSyncStatus = "Cloud load failed";
+    updateCloudStatus();
+    logSyncEvent("Sync failed", "Cloud load failed - " + message, "error");
+    if (!silent) {
+      alert("Cloud load failed: " + message + ". Check console for full details.");
+    }
+    return null;
+  }
 }
 
-function syncCloudData() {
+async function syncCloudData() {
   console.log("cloud sync click fired", { enabled: isCloudSyncEnabled(), currentUser: state.currentUser });
   if (!CLOUD_SYNC_ENABLED) {
     cloudSyncStatus = "Cloud sync disabled (local mode)";
@@ -833,30 +835,23 @@ function syncCloudData() {
     return Promise.resolve();
   }
 
-  return waitForCloudAuth()
-    .then(() => {
-      return loadStateFromCloud({ silent: true }).then((remote) => {
-        if (!remote) {
-          return saveStateToCloud()
-            .then(() => {
-              startRealtimeCloudListener();
-              alert("Local data saved to cloud.");
-            })
-            .catch((error) => {
-              console.error("Cloud save failed:", error);
-              alert("Cloud save failed: " + (error && error.message ? error.message : "unknown error") + ". Check console.");
-            });
-        }
-        startRealtimeCloudListener();
-        alert("Cloud data loaded and applied successfully.");
-        return Promise.resolve();
-      });
-    })
-    .catch((error) => {
-      console.error("Cloud sync failed due to auth:", error);
-      const message = error && error.message ? error.message : "unknown error";
-      alert("Cloud sync failed: " + message + ". Check console for details.");
-    });
+  try {
+    await waitForCloudAuth();
+    const remote = await loadStateFromCloud({ silent: true });
+    if (!remote) {
+      await saveStateToCloud();
+      startRealtimeCloudListener();
+      alert("Local data saved to cloud.");
+      return;
+    }
+
+    startRealtimeCloudListener();
+    alert("Cloud data loaded and applied successfully.");
+  } catch (error) {
+    const message = error && error.message ? error.message : "unknown error";
+    logSyncEvent("Sync failed", "Cloud sync failed - " + message, "error");
+    alert("Cloud sync failed: " + message + ". Check console for details.");
+  }
 }
 
 function updateCloudStatus() {
