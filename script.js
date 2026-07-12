@@ -162,6 +162,8 @@ function login() {
     saveState({ skipCloud: true });
     pushCloudLog('Login success: user', 'info');
     if (loginError) { loginError.classList.add('hidden'); }
+    // Ensure UI transitions happen even if callers forget to handle the result
+    try { hideLoginScreen(); updateDashboard(); if (firebaseDb) syncCloudData(); } catch (e) { console.warn('Post-login UI update failed', e); }
     return true;
   }
   if (username === "LOGO" && password === "1234") {
@@ -172,6 +174,7 @@ function login() {
     saveState({ skipCloud: true });
     pushCloudLog('Login success: Logistics Officer', 'info');
     if (loginError) { loginError.classList.add('hidden'); }
+    try { hideLoginScreen(); updateDashboard(); if (firebaseDb) syncCloudData(); } catch (e) { console.warn('Post-login UI update failed', e); }
     return true;
   }
   pushCloudLog('Login failed for user: ' + username, 'warn');
