@@ -163,8 +163,33 @@ function login() {
     saveState({ skipCloud: true });
     return true;
   }
-  alert("Invalid username or password.");
+  pushCloudLog('Login failed for user: ' + username, 'warn');
+  alert("Invalid username or password. Try: user/user or LOGO/1234");
   return false;
+}
+
+// Attach fallback handlers so login works even if initializeApp didn't run or had an error
+if (loginForm) {
+  loginForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const success = login();
+    if (success) {
+      hideLoginScreen();
+      updateDashboard();
+      if (firebaseDb) syncCloudData();
+    }
+  });
+}
+
+if (loginSubmit) {
+  loginSubmit.addEventListener('click', () => {
+    const success = login();
+    if (success) {
+      hideLoginScreen();
+      updateDashboard();
+      if (firebaseDb) syncCloudData();
+    }
+  });
 }
 
 function createDefaultState() {
@@ -705,7 +730,7 @@ function updateDashboard() {
   renderPlanForm();
   renderCategoryOptions();
   renderMonthBreakup(monthBreakup, months);
-  renderProgress(spendByCategory, defaultBudgetCaps, currentMonthSpendByCategory, lastYearMonthSpendByCategory, asOfDate);
+  renderProgress(spendByCategory, state.cdaPlan || defaultBudgetCaps, currentMonthSpendByCategory, lastYearMonthSpendByCategory, asOfDate);
   renderDonutChart(spendByCategory);
   renderExpenseList();
   if (savePlanButton) {
@@ -741,7 +766,7 @@ function renderPlanForm() {
       const spent = currentUserExpenses
         .filter((expense) => expense.category === category)
         .reduce((sum, expense) => sum + Number(expense.amount), 0);
-      const percentOfHead = spent ? Math.round((Number(amount) / spent) * 100) : 0;
+      const percentOfHead = amount ? Math.round((Number(spent) / Number(amount)) * 100) : 0;
       return `
         <div class="plan-row">
           <div class="plan-meta">
