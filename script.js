@@ -85,10 +85,63 @@ function loadState() {
       adminPin: parsed.adminPin || null,
       cdaPlan: parsed.cdaPlan || { ...defaultBudgetCaps },
       asOfDate: parsed.asOfDate || getDefaultAsOfDate(),
+      updatedAt: parsed.updatedAt || null,
     };
   } catch {
     return createDefaultState();
   }
+}
+
+function toTimestamp(value) {
+  if (!value) return 0;
+  const ms = Date.parse(value);
+  return Number.isFinite(ms) ? ms : 0;
+}
+
+function getStateMetrics(source) {
+  const users = source && source.users && typeof source.users === "object" ? source.users : {};
+  const cdaPlan = source && source.cdaPlan && typeof source.cdaPlan === "object" ? source.cdaPlan : {};
+
+  const expenseCount = Object.values(users).reduce((sum, userData) => {
+    if (!userData || !Array.isArray(userData.expenses)) return sum;
+    return sum + userData.expenses.length;
+  }, 0);
+
+  const nonZeroPlanCount = Object.values(cdaPlan).reduce((sum, amount) => {
+    return sum + (Number(amount) > 0 ? 1 : 0);
+  }, 0);
+
+  return { expenseCount, nonZeroPlanCount };
+}
+
+function shouldUseRemoteState(remote) {
+  const remoteTs = toTimestamp(remote && remote.updatedAt);
+  const localTs = toTimestamp(state && state.updatedAt);
+  const remoteMetrics = getStateMetrics(remote);
+  const localMetrics = getStateMetrics(state);
+
+  const remoteLooksEmpty = remoteMetrics.expenseCount === 0 && remoteMetrics.nonZeroPlanCount === 0;
+  const localHasData = localMetrics.expenseCount > 0 || localMetrics.nonZeroPlanCount > 0;
+  if (remoteLooksEmpty && localHasData) {
+    return false;
+  }
+
+  if (remoteTs && localTs) {
+    return remoteTs >= localTs;
+  }
+  if (remoteTs && !localTs) {
+    return true;
+  }
+  if (!remoteTs && localTs) {
+    // Legacy cloud snapshots without timestamp should not replace newer local state.
+    return false;
+  }
+
+  if (remoteMetrics.expenseCount < localMetrics.expenseCount) {
+    return false;
+  }
+
+  return true;
 }
 
 function pushCloudLog(message, level = 'info') {
@@ -232,6 +285,7 @@ function createDefaultState() {
   return {
     currentUser: null,
     asOfDate: getDefaultAsOfDate(),
+    updatedAt: new Date().toISOString(),
     adminPin: null,
     cdaPlan: { ...defaultBudgetCaps },
     users: {
@@ -252,6 +306,7 @@ function makeUserData(name) {
 
 function saveState({ skipCloud = false } = {}) {
   mirrorLogisticsExpensesToUser();
+  state.updatedAt = new Date().toISOString();
   localStorage.setItem(storageKey, JSON.stringify(state));
   if (!skipCloud && isCloudSyncEnabled()) {
     saveStateToCloud();
@@ -449,6 +504,11 @@ function startRealtimeCloudListener() {
       return;
     }
 
+    if (!shouldUseRemoteState(remote)) {
+      pushCloudLog('Skipped remote update because local data is newer or richer.', 'warn');
+      return;
+    }
+
     applyRemoteState(remote);
     if (!state.users[state.currentUser]) {
       state.currentUser = Object.keys(state.users)[0] || state.currentUser;
@@ -599,6 +659,9 @@ function applyRemoteState(remote) {
   if (remote.adminPin) {
     state.adminPin = remote.adminPin;
   }
+  if (remote.updatedAt) {
+    state.updatedAt = remote.updatedAt;
+  }
 }
 
 function saveStateToCloud() {
@@ -613,6 +676,7 @@ function saveStateToCloud() {
         cdaPlan: state.cdaPlan,
         asOfDate: state.asOfDate,
         adminPin: state.adminPin,
+        updatedAt: state.updatedAt || new Date().toISOString(),
       };
       const path = cloudPathForUser(state.currentUser);
       console.log("Saving cloud state at:", path, data);
@@ -657,6 +721,16 @@ function loadStateFromCloud({ silent = false } = {}) {
         if (!silent) alert("No cloud data found at: " + path);
         return null;
       }
+
+      if (!shouldUseRemoteState(remote)) {
+        pushCloudLog('Remote snapshot is older/empty. Keeping local state and restoring cloud from local.', 'warn');
+        saveStateToCloud();
+        if (!silent) {
+          alert("Cloud had older or empty data. Kept your local data and restored cloud from this device.");
+        }
+        return null;
+      }
+
       console.log(`Cloud state loaded from ${source}:`, remote);
       if (typeof applyRemoteState === "function") {
         applyRemoteState(remote);
