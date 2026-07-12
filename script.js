@@ -199,14 +199,17 @@ if (loginForm) {
 }
 
 if (loginSubmit) {
-  loginSubmit.addEventListener('click', () => {
-    const success = login();
-    if (success) {
-      hideLoginScreen();
-      updateDashboard();
-      if (isCloudSyncEnabled() && firebaseAuthReady) syncCloudData();
-    }
-  });
+  if (!loginSubmit.dataset.loginBound) {
+    loginSubmit.dataset.loginBound = '1';
+    loginSubmit.addEventListener('click', () => {
+      const success = login();
+      if (success) {
+        hideLoginScreen();
+        updateDashboard();
+        if (isCloudSyncEnabled() && firebaseAuthReady) syncCloudData();
+      }
+    });
+  }
 }
 
 function createDefaultState() {
@@ -692,8 +695,10 @@ function syncCloudData() {
 
 function updateCloudStatus() {
   if (!cloudStatusLabel) return;
-  if (isCloudSyncEnabled()) {
+  if (isCloudSyncEnabled() && firebaseAuthReady) {
     cloudSyncStatus = "Cloud sync enabled";
+  } else if (isCloudSyncEnabled() && !firebaseAuthReady) {
+    cloudSyncStatus = "Cloud auth unavailable (local mode)";
   }
   cloudStatusLabel.textContent = cloudSyncStatus;
   if (cloudSyncButton) {
@@ -1289,16 +1294,19 @@ function initializeApp() {
 
   showLoginScreen();
 
-  loginSubmit.addEventListener("click", () => {
-    const success = login();
-    if (success) {
-      hideLoginScreen();
-      updateDashboard();
-      if (isCloudSyncEnabled() && firebaseAuthReady) {
-        syncCloudData();
+  if (loginSubmit && !loginSubmit.dataset.loginBound) {
+    loginSubmit.dataset.loginBound = '1';
+    loginSubmit.addEventListener("click", () => {
+      const success = login();
+      if (success) {
+        hideLoginScreen();
+        updateDashboard();
+        if (isCloudSyncEnabled() && firebaseAuthReady) {
+          syncCloudData();
+        }
       }
-    }
-  });
+    });
+  }
 
   window.addEventListener("focus", () => {
     if (isCloudSyncEnabled() && state.currentUser) {
