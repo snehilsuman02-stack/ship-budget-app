@@ -364,7 +364,23 @@ function loadStateFromCloud({ silent = false } = {}) {
         return null;
       }
       console.log(`Cloud state loaded from ${source}:`, remote);
-      applyRemoteState(remote);
+      if (typeof applyRemoteState === "function") {
+        applyRemoteState(remote);
+      } else {
+        console.warn("applyRemoteState not defined; falling back to manual merge.");
+        if (remote.users) {
+          mergeRemoteUsers(remote.users);
+        }
+        if (remote.cdaPlan && typeof remote.cdaPlan === "object") {
+          state.cdaPlan = { ...state.cdaPlan, ...remote.cdaPlan };
+        }
+        if (remote.asOfDate) {
+          state.asOfDate = remote.asOfDate;
+        }
+        if (remote.adminPin) {
+          state.adminPin = remote.adminPin;
+        }
+      }
       if (!state.users[state.currentUser]) {
         state.currentUser = Object.keys(state.users)[0] || state.currentUser;
       }
