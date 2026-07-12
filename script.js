@@ -197,6 +197,22 @@ function getCategorySpend(expenses) {
   }, {});
 }
 
+function getMonthKey(dateString) {
+  const date = new Date(dateString);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function getSameMonthLastYear(dateString) {
+  const date = new Date(dateString);
+  date.setFullYear(date.getFullYear() - 1);
+  return date.toISOString().split('T')[0];
+}
+
+function filterExpensesForMonth(expenses, targetDate) {
+  const monthKey = getMonthKey(targetDate);
+  return expenses.filter((item) => getMonthKey(item.date) === monthKey);
+}
+
 function getAsOfDate() {
   return reportingDateInput.value || state.asOfDate || getDefaultAsOfDate();
 }
@@ -404,6 +420,7 @@ function loadStateFromCloud({ silent = false } = {}) {
 }
 
 function syncCloudData() {
+  console.log("cloud sync click fired", { enabled: isCloudSyncEnabled(), currentUser: state.currentUser });
   if (!isCloudSyncEnabled()) {
     alert("Cloud sync is not configured. Enter Firebase configuration in script.js.");
     return Promise.resolve();
@@ -447,6 +464,11 @@ function updateDashboard() {
   const asOfDate = getAsOfDate();
   const expensesToDate = filterExpensesToDate(currentUserData.expenses, asOfDate);
   const spendByCategory = getCategorySpend(expensesToDate);
+  const currentMonthExpenses = filterExpensesForMonth(currentUserData.expenses, asOfDate);
+  const lastYearMonthDate = getSameMonthLastYear(asOfDate);
+  const lastYearMonthExpenses = filterExpensesForMonth(currentUserData.expenses, lastYearMonthDate);
+  const currentMonthSpendByCategory = getCategorySpend(currentMonthExpenses);
+  const lastYearMonthSpendByCategory = getCategorySpend(lastYearMonthExpenses);
   const totalAllocation = Object.values(defaultBudgetCaps).reduce((sum, value) => sum + Number(value), 0);
   const totalSpent = expensesToDate.reduce((sum, item) => sum + Number(item.amount), 0);
   const remainingBudget = totalAllocation - totalSpent;
@@ -495,7 +517,7 @@ function updateDashboard() {
   renderUserSelection();
   renderPlanForm();
   renderCategoryOptions();
-  renderProgress(spendByCategory, defaultBudgetCaps);
+  renderProgress(spendByCategory, defaultBudgetCaps, currentMonthSpendByCategory, lastYearMonthSpendByCategory, asOfDate);
   renderDonutChart(spendByCategory);
   renderExpenseList();
   if (savePlanButton) {
@@ -548,15 +570,21 @@ function renderPlanForm() {
     .join("");
 }
 
-function renderProgress(spendByCategory, plan) {
+function renderProgress(spendByCategory, plan, currentMonthSpendByCategory, lastYearMonthSpendByCategory, asOfDate) {
   const container = document.getElementById("progress-list");
   container.innerHTML = "";
 
   Object.entries(defaultBudgetCaps).forEach(([category, defaultCap], index) => {
     const cap = Number(plan[category] ?? defaultCap);
     const spent = spendByCategory[category] || 0;
+    const monthSpent = currentMonthSpendByCategory[category] || 0;
+    const lastYearSpent = lastYearMonthSpendByCategory[category] || 0;
+    const diff = monthSpent - lastYearSpent;
+    const diffText = diff >= 0 ? `↑ ${formatCurrency(diff)} vs last year` : `↓ ${formatCurrency(Math.abs(diff))} vs last year`;
     const percent = cap ? Math.min(100, Math.round((spent / cap) * 100)) : 0;
     const pending = cap - spent;
+    const monthName = new Date(asOfDate).toLocaleString('default', { month: 'long' });
+    const combinedSameMonth = monthSpent + lastYearSpent;
     const item = document.createElement("div");
     item.className = "progress-item";
     item.innerHTML = `
@@ -566,6 +594,13 @@ function renderProgress(spendByCategory, plan) {
       </div>
       <div class="progress-detail">
         ${pending >= 0 ? `Pending ${formatCurrency(pending)} until date` : `Over budget by ${formatCurrency(Math.abs(pending))}`}
+      </div>
+      <div class="progress-detail month-compare">
+        <span>Current ${monthName}: <strong>${formatCurrency(monthSpent)}</strong></span>
+        <span>Same month last year: <strong>${formatCurrency(lastYearSpent)}</strong></span>
+      </div>
+      <div class="progress-detail month-compare">
+        Combined same-month spend: <strong>${formatCurrency(combinedSameMonth)}</strong> · ${diffText}
       </div>
       <div class="bar-track">
         <div class="bar-fill" style="width:${percent}%; background: linear-gradient(90deg, ${palette[index % palette.length]}, ${palette[(index + 2) % palette.length]});"></div>
@@ -926,10 +961,15 @@ function initializeApp() {
     updateDashboard();
   }
 
+  function handleCloudSyncClick() {
+    console.log("cloud sync button handler attached", { button: cloudSyncButton });
+    syncCloudData();
+  }
+
   if (cloudSyncButton) {
-    cloudSyncButton.addEventListener("click", () => {
-      syncCloudData();
-    });
+    cloudSyncButton.addEventListener("click", handleCloudSyncClick);
+  } else {
+    console.warn("Cloud sync button not found on page.");
   }
 
   if (logoutButton) {
