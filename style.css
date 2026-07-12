@@ -207,6 +207,26 @@ body {
   color: var(--muted);
   font-size: 0.9rem;
 }
+.cloud-log {
+  margin-top: 8px;
+  max-height: 120px;
+  overflow: auto;
+  background: rgba(0,0,0,0.35);
+  border: 1px solid rgba(255,255,255,0.06);
+  padding: 8px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  color: var(--text);
+}
+.cloud-log.hidden {
+  display: none;
+}
+.cloud-log-entry {
+  margin-bottom: 6px;
+}
+.cloud-log-entry.error { color: #ffb4b4; }
+.cloud-log-entry.warn { color: #ffd8a8; }
+.cloud-log-entry.info { color: #cfe9ff; }
 .progress-list { display: grid; gap: 18px; }
 .progress-item { display: grid; gap: 12px; padding: 12px 0; }
 .progress-label { display: flex; justify-content: space-between; align-items: center; color: var(--muted); font-size: 1rem; }

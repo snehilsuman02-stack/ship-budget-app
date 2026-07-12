@@ -49,6 +49,7 @@ const logoutButton = document.getElementById("logout-button");
 const cloudSyncButton = document.getElementById("cloud-sync-btn");
 const cloudDebugButton = document.getElementById("cloud-debug-write");
 const cloudStatusLabel = document.getElementById("cloud-status");
+const cloudLog = document.getElementById("cloud-log");
 const loginScreen = document.getElementById("login-screen");
 const loginForm = document.getElementById("login-form");
 const loginUsername = document.getElementById("login-username");
@@ -86,6 +87,20 @@ function loadState() {
     };
   } catch {
     return createDefaultState();
+  }
+}
+
+function pushCloudLog(message, level = 'info') {
+  try {
+    console.log('[CLOUD]', level, message);
+    if (!cloudLog) return;
+    const entry = document.createElement('div');
+    entry.className = 'cloud-log-entry ' + (level || 'info');
+    entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+    cloudLog.prepend(entry);
+    cloudLog.classList.remove('hidden');
+  } catch (e) {
+    console.log('pushCloudLog error', e);
   }
 }
 
@@ -366,13 +381,15 @@ function initCloudSync() {
         firebase.auth().onAuthStateChanged((user) => {
           if (user) {
             firebaseAuthReady = true;
-            console.log("Firebase auth ready.");
+              console.log("Firebase auth ready.");
+              pushCloudLog('Firebase auth ready', 'info');
             cloudSyncStatus = "Cloud sync enabled";
             updateCloudStatus();
             resolve(user);
           } else {
             firebase.auth().signInAnonymously().catch((authError) => {
               console.error("Cloud auth failed:", authError);
+              pushCloudLog('Cloud auth failed: ' + (authError && authError.message ? authError.message : authError), 'error');
               cloudSyncStatus = "Cloud auth failed";
               updateCloudStatus();
               reject(authError);
@@ -387,9 +404,11 @@ function initCloudSync() {
     }
 
     console.log("Firebase initialized successfully.");
+    pushCloudLog('Firebase initialized successfully', 'info');
     return true;
   } catch (error) {
     console.warn("Cloud sync initialization failed:", error);
+    pushCloudLog('Cloud init failed: ' + (error && error.message ? error.message : error), 'error');
     cloudSyncStatus = "Cloud init failed";
     updateCloudStatus();
     return false;
