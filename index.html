@@ -102,10 +102,22 @@
               <div class="action-row">
                 <button id="export-csv" type="button">Export CSV</button>
                 <button id="export-data" type="button">Export JSON</button>
-                <label id="import-data" for="import-file" class="claim-btn">Import JSON</label>
-                <button id="print-report" type="button">Print report</button>
-              </div>
-              <input id="import-file" type="file" accept=".json,application/json" class="hidden-file-input" />
+                  <button id="show-json" type="button">Show JSON</button>
+                  <label id="import-data" for="import-file" class="claim-btn">Import JSON</label>
+                  <button id="print-report" type="button">Print report</button>
+                </div>
+                <input id="import-file" type="file" accept=".json,application/json,text/json,*/*" class="hidden-file-input" />
+                <div id="json-export-panel" class="json-export-panel hidden">
+                  <div class="json-export-header">
+                    <span>Export JSON data</span>
+                    <button id="close-json-panel" type="button">Close</button>
+                  </div>
+                  <textarea id="json-export-text" readonly placeholder="Exported JSON data will appear here."></textarea>
+                  <div class="action-row">
+                    <button id="copy-json" type="button">Copy JSON</button>
+                    <button id="download-json" type="button">Download JSON</button>
+                  </div>
+                </div>
             </div>
             <div class="chart-wrap">
               <div id="donut-chart" class="donut-chart"></div>

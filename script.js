@@ -29,6 +29,12 @@ const userNameInput = document.getElementById("user-name");
 const switchUserButton = document.getElementById("switch-user");
 const exportCsvButton = document.getElementById("export-csv");
 const exportDataButton = document.getElementById("export-data");
+const showJsonButton = document.getElementById("show-json");
+const copyJsonButton = document.getElementById("copy-json");
+const downloadJsonButton = document.getElementById("download-json");
+const closeJsonPanelButton = document.getElementById("close-json-panel");
+const jsonExportPanel = document.getElementById("json-export-panel");
+const jsonExportText = document.getElementById("json-export-text");
 const importDataButton = document.getElementById("import-data");
 const importFileInput = document.getElementById("import-file");
 const printReportButton = document.getElementById("print-report");
@@ -915,21 +921,109 @@ exportCsvButton.addEventListener("click", () => {
   URL.revokeObjectURL(link.href);
 });
 
+function buildExportPayload() {
+  return {
+    exportedAt: new Date().toISOString(),
+    currentUser: state.currentUser,
+    users: state.users,
+    cdaPlan: state.cdaPlan,
+    asOfDate: state.asOfDate,
+  };
+}
+
+function triggerJsonDownload(filename, payload) {
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+}
+
 if (exportDataButton) {
   exportDataButton.addEventListener("click", () => {
-    const exportPayload = {
-      exportedAt: new Date().toISOString(),
-      currentUser: state.currentUser,
-      users: state.users,
-      cdaPlan: state.cdaPlan,
-      asOfDate: state.asOfDate,
+    const exportPayload = buildExportPayload();
+    triggerJsonDownload(`${state.currentUser || 'budget'}-data.json`, exportPayload);
+  });
+}
+
+if (showJsonButton && jsonExportPanel && jsonExportText) {
+  showJsonButton.addEventListener("click", () => {
+    const exportPayload = buildExportPayload();
+    jsonExportText.value = JSON.stringify(exportPayload, null, 2);
+    jsonExportPanel.classList.remove("hidden");
+  });
+}
+
+if (closeJsonPanelButton && jsonExportPanel) {
+  closeJsonPanelButton.addEventListener("click", () => {
+    jsonExportPanel.classList.add("hidden");
+  });
+}
+
+if (copyJsonButton && jsonExportText) {
+  copyJsonButton.addEventListener("click", () => {
+    navigator.clipboard?.writeText(jsonExportText.value)
+      .then(() => alert("Export JSON copied to clipboard."))
+      .catch(() => {
+        jsonExportText.select();
+        document.execCommand('copy');
+        alert("Export JSON copied to clipboard.");
+      });
+  });
+}
+
+if (downloadJsonButton) {
+  downloadJsonButton.addEventListener("click", () => {
+    const exportPayload = buildExportPayload();
+    triggerJsonDownload(`${state.currentUser || 'budget'}-data.json`, exportPayload);
+  });
+}
+
+if (importFileInput) {
+  importFileInput.addEventListener("change", (event) => {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (loadEvent) => {
+      try {
+        const imported = JSON.parse(loadEvent.target.result);
+        if (!imported || typeof imported !== 'object' || !imported.users) {
+          throw new Error('Invalid import file.');
+        }
+
+        // Merge imported data into current state.
+        if (imported.users) {
+          state.users = {
+            ...state.users,
+            ...imported.users,
+          };
+        }
+        if (imported.cdaPlan) {
+          state.cdaPlan = {
+            ...state.cdaPlan,
+            ...imported.cdaPlan,
+          };
+        }
+        if (imported.asOfDate) {
+          state.asOfDate = imported.asOfDate;
+        }
+        if (imported.currentUser) {
+          state.currentUser = imported.currentUser;
+        }
+
+        saveState();
+        updateDashboard();
+        alert('Data imported successfully.');
+      } catch (error) {
+        console.error(error);
+        alert('Failed to import JSON data. Please use a valid export file.');
+      }
     };
-    const blob = new Blob([JSON.stringify(exportPayload, null, 2)], { type: "application/json" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `${state.currentUser || 'budget'}-data.json`;
-    link.click();
-    URL.revokeObjectURL(link.href);
+    reader.readAsText(file);
   });
 }
 
