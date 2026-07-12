@@ -104,6 +104,20 @@ function pushCloudLog(message, level = 'info') {
   }
 }
 
+// Global error handlers to surface startup/runtime errors in the UI
+window.addEventListener('error', (ev) => {
+  const msg = ev && ev.message ? ev.message : String(ev);
+  pushCloudLog('Runtime error: ' + msg, 'error');
+  // also show alert so it's visible when DevTools is closed
+  alert('Runtime error: ' + msg);
+});
+
+window.addEventListener('unhandledrejection', (ev) => {
+  const reason = ev && ev.reason ? ev.reason : String(ev);
+  pushCloudLog('Unhandled promise rejection: ' + (reason && reason.message ? reason.message : reason), 'error');
+  alert('Unhandled promise rejection: ' + (reason && reason.message ? reason.message : reason));
+});
+
 function getDefaultAsOfDate() {
   return new Date().toISOString().split("T")[0];
 }
