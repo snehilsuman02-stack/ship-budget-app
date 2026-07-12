@@ -933,12 +933,7 @@ if (exportDataButton) {
   });
 }
 
-if (importDataButton && importFileInput) {
-  importDataButton.addEventListener("click", () => {
-    importFileInput.value = "";
-    importFileInput.click();
-  });
-
+if (importFileInput) {
   importFileInput.addEventListener("change", (event) => {
     const file = event.target.files && event.target.files[0];
     if (!file) return;

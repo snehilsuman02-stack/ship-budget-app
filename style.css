@@ -283,13 +283,16 @@ body {
 
 form { display: grid; gap: 14px; }
 label { display: grid; gap: 6px; color: var(--muted); font-size: 1rem; }
-input, select, button {
+input, select, button, label[for="import-file"] {
   border: 1px solid var(--border);
   border-radius: 14px;
   padding: 12px 14px;
   font: inherit;
   background: var(--panel-2);
   color: var(--text);
+}
+.hidden-file-input {
+  display: none;
 }
 button {
   cursor: pointer;
