@@ -990,7 +990,7 @@ function renderPlanForm() {
             ${adminEditable ? `<input class="plan-input" data-category="${category}" type="number" min="0" step="1000" value="${amount}" />` : `<strong>${formatCurrency(amount)}</strong>`}
           </div>
           <div class="plan-details">
-            <span>${formatCurrency(amount)} approved</span>
+            <span>${formatCurrency(amount)} bills passed by CDA</span>
             <span>${formatCurrency(spent)} spent • ${percentOfHead}% of head expenditure</span>
           </div>
         </div>
@@ -1005,18 +1005,16 @@ function renderProgress(spendByCategory, plan, currentMonthSpendByCategory, last
 
   Object.entries(defaultBudgetCaps).forEach(([category, defaultCap], index) => {
     const headAllocation = Number(defaultCap || 0);
-    const cdaApproved = Number(plan[category] ?? 0);
     const spent = spendByCategory[category] || 0;
     const monthSpent = currentMonthSpendByCategory[category] || 0;
     const lastYearSpent = lastYearMonthSpendByCategory[category] || 0;
     const diff = monthSpent - lastYearSpent;
     const diffText = diff >= 0 ? `↑ ${formatCurrency(diff)} vs last year` : `↓ ${formatCurrency(Math.abs(diff))} vs last year`;
     const percent = headAllocation ? Math.min(100, Math.round((spent / headAllocation) * 100)) : 0;
-    const pending = cdaApproved - spent;
-    const hasCdaAmount = cdaApproved > 0;
-    const budgetLine = hasCdaAmount
-      ? (pending >= 0 ? `Pending ${formatCurrency(pending)} until date` : `Over budget by ${formatCurrency(Math.abs(pending))}`)
-      : "CDA approved amount pending from LOGO";
+    const pending = headAllocation - spent;
+    const budgetLine = pending >= 0
+      ? `Pending ${formatCurrency(pending)} until date`
+      : `Over budget by ${formatCurrency(Math.abs(pending))}`;
     const monthName = new Date(asOfDate).toLocaleString('default', { month: 'long' });
     const combinedSameMonth = monthSpent + lastYearSpent;
     const item = document.createElement("div");
@@ -1026,7 +1024,6 @@ function renderProgress(spendByCategory, plan, currentMonthSpendByCategory, last
         <span>${category}</span>
         <span>${formatCurrency(spent)} / ${formatCurrency(headAllocation)}</span>
       </div>
-      <div class="progress-detail">CDA approved: ${formatCurrency(cdaApproved)}</div>
       <div class="progress-detail">
         ${budgetLine}
       </div>
