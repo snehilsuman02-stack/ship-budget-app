@@ -149,6 +149,7 @@ function makeUserData(name) {
 }
 
 function saveState({ skipCloud = false } = {}) {
+  mirrorLogisticsExpensesToUser();
   localStorage.setItem(storageKey, JSON.stringify(state));
   if (!skipCloud && isCloudSyncEnabled()) {
     saveStateToCloud();
@@ -303,19 +304,22 @@ function mergeRemoteUsers(remoteUsers) {
 }
 
 function saveStateToCloud() {
-  if (!isCloudSyncEnabled() || !state.currentUser) return Promise.resolve();
+  if (!isCloudSyncEnabled()) return Promise.resolve();
   const data = {
     users: state.users,
     cdaPlan: state.cdaPlan,
     asOfDate: state.asOfDate,
+    adminPin: state.adminPin,
   };
-  return firebaseDb.ref(cloudPathForUser(state.currentUser)).set(data).catch((error) => {
+  const path = cloudPathForUser(state.currentUser);
+  console.log("Saving cloud state at:", path, data);
+  return firebaseDb.ref(path).set(data).catch((error) => {
     console.error("Cloud save failed:", error);
   });
 }
 
 function loadStateFromCloud({ silent = false } = {}) {
-  if (!isCloudSyncEnabled() || !state.currentUser) return Promise.resolve();
+  if (!isCloudSyncEnabled()) return Promise.resolve();
   const path = cloudPathForUser(state.currentUser);
   console.log("Loading cloud state from: ", path);
   return firebaseDb
@@ -337,20 +341,12 @@ function loadStateFromCloud({ silent = false } = {}) {
       });
     })
     .then(({ remote, source }) => {
-      if (!remote) {
+          if (!remote) {
         if (!silent) alert("No cloud data found at: " + path);
         return null;
       }
       console.log(`Cloud state loaded from ${source}:`, remote);
-      if (remote.users) {
-        mergeRemoteUsers(remote.users);
-      }
-      if (remote.cdaPlan && typeof remote.cdaPlan === "object") {
-        state.cdaPlan = { ...state.cdaPlan, ...remote.cdaPlan };
-      }
-      if (remote.asOfDate) {
-        state.asOfDate = remote.asOfDate;
-      }
+      applyRemoteState(remote);
       if (!state.users[state.currentUser]) {
         state.currentUser = Object.keys(state.users)[0] || state.currentUser;
       }
