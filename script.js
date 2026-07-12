@@ -1241,15 +1241,18 @@ function initializeApp() {
             .ref(debugPath)
             .push(payload)
             .then(() => {
+              pushCloudLog('Debug write succeeded to: ' + debugPath, 'info');
               alert('Debug write succeeded to: ' + debugPath);
             })
             .catch((err) => {
               console.error('Debug write failed:', err);
+              pushCloudLog('Debug write failed: ' + (err && err.message ? err.message : err), 'error');
               alert('Debug write failed: ' + (err && err.message ? err.message : err));
             });
         })
         .catch((err) => {
           console.error('Auth not ready for debug write:', err);
+          pushCloudLog('Auth not ready for debug write: ' + (err && err.message ? err.message : err), 'error');
           alert('Cloud auth not ready: ' + (err && err.message ? err.message : err));
         });
     });
