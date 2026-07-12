@@ -1211,12 +1211,46 @@ function initializeApp() {
   initCloudSync();
   updateCloudStatus();
 
+  // Auto-login support for debugging: use ?autologin=1 or ?autologin=1&user=LOGO
+  function getUrlParam(name) {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      return params.get(name);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  const auto = getUrlParam('autologin');
+  const autoUser = getUrlParam('user');
+
   if (state.currentUser && firebaseDb) {
     waitForCloudAuth()
       .then(() => loadStateFromCloud({ silent: true }))
       .catch((authError) => {
         console.warn("Cloud auth was not ready on startup:", authError);
       });
+  }
+
+  if (auto === '1' || auto === 'true') {
+    // fill credentials and attempt login automatically
+    if (autoUser && autoUser.toUpperCase() === 'LOGO') {
+      if (loginUsername) loginUsername.value = 'LOGO';
+      if (loginPassword) loginPassword.value = '1234';
+    } else {
+      if (loginUsername) loginUsername.value = 'user';
+      if (loginPassword) loginPassword.value = 'user';
+    }
+    const ok = login();
+    if (ok) {
+      hideLoginScreen();
+      updateDashboard();
+      if (firebaseDb) syncCloudData();
+      pushCloudLog('Auto-login succeeded', 'info');
+      return;
+    } else {
+      pushCloudLog('Auto-login failed', 'warn');
+    }
   }
 
   showLoginScreen();
