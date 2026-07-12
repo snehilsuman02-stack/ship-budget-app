@@ -303,6 +303,24 @@ function mergeRemoteUsers(remoteUsers) {
   });
 }
 
+function applyRemoteState(remote) {
+  if (!remote || typeof remote !== "object") {
+    return;
+  }
+  if (remote.users) {
+    mergeRemoteUsers(remote.users);
+  }
+  if (remote.cdaPlan && typeof remote.cdaPlan === "object") {
+    state.cdaPlan = { ...state.cdaPlan, ...remote.cdaPlan };
+  }
+  if (remote.asOfDate) {
+    state.asOfDate = remote.asOfDate;
+  }
+  if (remote.adminPin) {
+    state.adminPin = remote.adminPin;
+  }
+}
+
 function saveStateToCloud() {
   if (!isCloudSyncEnabled()) return Promise.resolve();
   const data = {
