@@ -161,7 +161,16 @@ function login() {
     pushCloudLog('Login success: user', 'info');
     if (loginError) { loginError.classList.add('hidden'); }
     // Ensure UI transitions happen even if callers forget to handle the result
-    try { hideLoginScreen(); updateDashboard(); if (isCloudSyncEnabled() && firebaseAuthReady) syncCloudData(); } catch (e) { console.warn('Post-login UI update failed', e); }
+    try {
+      hideLoginScreen();
+      updateDashboard();
+      if (isCloudSyncEnabled() && firebaseAuthReady) {
+        syncCloudData();
+        startRealtimeCloudListener();
+      }
+    } catch (e) {
+      console.warn('Post-login UI update failed', e);
+    }
     return true;
   }
   if ((username === "logo" || username === "logistics officer" || username === "logistic officer") && password === "1234") {
@@ -172,7 +181,16 @@ function login() {
     saveState({ skipCloud: true });
     pushCloudLog('Login success: Logistics Officer', 'info');
     if (loginError) { loginError.classList.add('hidden'); }
-    try { hideLoginScreen(); updateDashboard(); if (isCloudSyncEnabled() && firebaseAuthReady) syncCloudData(); } catch (e) { console.warn('Post-login UI update failed', e); }
+    try {
+      hideLoginScreen();
+      updateDashboard();
+      if (isCloudSyncEnabled() && firebaseAuthReady) {
+        syncCloudData();
+        startRealtimeCloudListener();
+      }
+    } catch (e) {
+      console.warn('Post-login UI update failed', e);
+    }
     return true;
   }
   pushCloudLog('Login failed for user: ' + rawUsername, 'warn');
@@ -388,7 +406,7 @@ function renderMonthBreakup(breakdown, months) {
 const firebaseConfig = {
   apiKey: "AIzaSyCZ24BN42MxM40qoR39Ore6veO0F9I7DkU",
   authDomain: "budget-tracker-f5fae.firebaseapp.com",
-  databaseURL: "https://budget-tracker-f5fae-default-rtdb.firebaseio.com",
+  databaseURL: "https://budget-tracker-f5fae-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId: "budget-tracker-f5fae",
   storageBucket: "budget-tracker-f5fae.appspot.com",
   messagingSenderId: "757492379743",
@@ -404,6 +422,46 @@ let firebaseDb = null;
 let firebaseAuthReady = false;
 let firebaseAuthPromise = Promise.resolve();
 let cloudSyncStatus = "Cloud not configured";
+let cloudRealtimeRef = null;
+let cloudRealtimeHandler = null;
+
+function stopRealtimeCloudListener() {
+  if (cloudRealtimeRef && cloudRealtimeHandler) {
+    cloudRealtimeRef.off("value", cloudRealtimeHandler);
+  }
+  cloudRealtimeRef = null;
+  cloudRealtimeHandler = null;
+}
+
+function startRealtimeCloudListener() {
+  if (!isCloudSyncEnabled() || !firebaseAuthReady || !state.currentUser || !firebaseDb) {
+    return;
+  }
+
+  const path = cloudPathForUser(state.currentUser);
+  const ref = firebaseDb.ref(path);
+  stopRealtimeCloudListener();
+
+  cloudRealtimeRef = ref;
+  cloudRealtimeHandler = (snapshot) => {
+    const remote = snapshot.val();
+    if (!remote || typeof remote !== "object") {
+      return;
+    }
+
+    applyRemoteState(remote);
+    if (!state.users[state.currentUser]) {
+      state.currentUser = Object.keys(state.users)[0] || state.currentUser;
+    }
+    saveState({ skipCloud: true });
+    updateDashboard();
+  };
+
+  ref.on("value", cloudRealtimeHandler, (error) => {
+    console.error("Realtime cloud listener failed:", error);
+    pushCloudLog('Realtime cloud listener failed: ' + (error && error.message ? error.message : error), 'error');
+  });
+}
 
 function waitForCloudAuth() {
   return firebaseAuthPromise;
@@ -673,6 +731,7 @@ function syncCloudData() {
         if (!remote) {
           return saveStateToCloud()
             .then(() => {
+              startRealtimeCloudListener();
               alert("Local data saved to cloud.");
             })
             .catch((error) => {
@@ -680,6 +739,7 @@ function syncCloudData() {
               alert("Cloud save failed: " + (error && error.message ? error.message : "unknown error") + ". Check console.");
             });
         }
+        startRealtimeCloudListener();
         alert("Cloud data loaded and applied successfully.");
         return Promise.resolve();
       });
@@ -1305,6 +1365,7 @@ function initializeApp() {
   window.addEventListener("focus", () => {
     if (isCloudSyncEnabled() && state.currentUser) {
       loadStateFromCloud({ silent: true });
+      startRealtimeCloudListener();
     }
   });
 
@@ -1330,6 +1391,7 @@ function initializeApp() {
     const confirmed = confirm("Log out and return to login screen?");
     if (!confirmed) return;
 
+    stopRealtimeCloudListener();
     state.currentUser = null;
     loginUsername.value = "";
     loginPassword.value = "";
