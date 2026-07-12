@@ -47,6 +47,7 @@ const claimEditButton = document.getElementById("claim-edit");
 const resetUsersButton = document.getElementById("reset-users");
 const logoutButton = document.getElementById("logout-button");
 const cloudSyncButton = document.getElementById("cloud-sync-btn");
+const cloudDebugButton = document.getElementById("cloud-debug-write");
 const cloudStatusLabel = document.getElementById("cloud-status");
 const loginScreen = document.getElementById("login-screen");
 const loginForm = document.getElementById("login-form");
@@ -1199,6 +1200,38 @@ function initializeApp() {
 
   if (cloudSyncButton) {
     cloudSyncButton.addEventListener("click", handleCloudSyncClick);
+  }
+
+  if (cloudDebugButton) {
+    cloudDebugButton.addEventListener("click", () => {
+      if (!firebaseDb) {
+        alert('Cloud not configured. Check Firebase settings.');
+        return;
+      }
+      waitForCloudAuth()
+        .then(() => {
+          const debugPath = cloudPath + '/debug';
+          const payload = {
+            testAt: new Date().toISOString(),
+            user: state.currentUser || null,
+            client: navigator.userAgent || 'unknown',
+          };
+          firebaseDb
+            .ref(debugPath)
+            .push(payload)
+            .then(() => {
+              alert('Debug write succeeded to: ' + debugPath);
+            })
+            .catch((err) => {
+              console.error('Debug write failed:', err);
+              alert('Debug write failed: ' + (err && err.message ? err.message : err));
+            });
+        })
+        .catch((err) => {
+          console.error('Auth not ready for debug write:', err);
+          alert('Cloud auth not ready: ' + (err && err.message ? err.message : err));
+        });
+    });
   } else {
     console.warn("Cloud sync button not found on page.");
   }
