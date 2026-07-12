@@ -492,6 +492,7 @@ function saveStateToCloud() {
     })
     .catch((error) => {
       console.error("Cloud save failed:", error);
+      pushCloudLog('Cloud save failed: ' + (error && error.message ? error.message : error), 'error');
       throw error;
     });
 }
@@ -563,6 +564,7 @@ function loadStateFromCloud({ silent = false } = {}) {
       updateCloudStatus();
       if (!silent) {
         const message = error && error.message ? error.message : "unknown error";
+        pushCloudLog('Cloud load failed: ' + message, 'error');
         alert("Cloud load failed: " + message + ". Check console for full details.");
       }
       return null;
