@@ -6,7 +6,6 @@ const TEST_PASSWORD = "user";
 export function watchAuthState(onSignedIn, onSignedOut, onError) {
   const { auth, firebaseApi, isFirebaseConfigured } = getFirebaseContext();
   if (!isFirebaseConfigured || !auth || !firebaseApi.onAuthStateChanged) {
-    if (onError) onError(new Error("Firebase authentication is not ready."));
     onSignedOut();
     return () => {};
   }
@@ -27,7 +26,7 @@ export function watchAuthState(onSignedIn, onSignedOut, onError) {
 export async function signIn(email, password) {
   const { auth, firebaseApi, isFirebaseConfigured } = getFirebaseContext();
   if (!isFirebaseConfigured || !auth) {
-    throw new Error("Firebase authentication is not configured.");
+    throw new Error("Firebase is not configured yet. Add real Firebase credentials to enable login.");
   }
 
   if (String(email).trim().toLowerCase() === TEST_USERNAME && String(password) === TEST_PASSWORD) {
@@ -66,7 +65,6 @@ export async function ensureFirebaseSession() {
 export function watchUserRole(uid, callback, onError) {
   const { auth, db, firebaseApi, isFirebaseConfigured } = getFirebaseContext();
   if (!isFirebaseConfigured || !db || !firebaseApi.onValue || !firebaseApi.ref) {
-    if (onError) onError(new Error("Firebase database is not ready."));
     callback("viewer");
     return () => {};
   }

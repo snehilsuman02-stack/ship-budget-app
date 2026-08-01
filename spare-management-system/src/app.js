@@ -48,6 +48,13 @@ function render() {
     statusBadge.textContent = firebaseReady ? "Cloud Live" : "Cloud Pending";
   }
 
+  const loginError = document.getElementById("login-error");
+  const { isFirebaseConfigured, firebaseReady } = getFirebaseContext();
+  if (loginError && !isFirebaseConfigured && !firebaseReady) {
+    loginError.textContent = "Firebase is not configured yet. Add real Firebase credentials to enable login.";
+    loginError.classList.remove("hidden");
+  }
+
   renderModule(content, state, {
     render,
     toast: showToast,
@@ -144,6 +151,7 @@ function bindGlobalUi() {
   document.getElementById("menu-toggle")?.addEventListener("click", () => {
     document.getElementById("sidebar")?.classList.toggle("open");
   });
+  const { isFirebaseConfigured } = getFirebaseContext();
 
   document.getElementById("theme-toggle")?.addEventListener("click", () => {
     const current = document.documentElement.dataset.theme || "dark";
@@ -165,6 +173,14 @@ function bindGlobalUi() {
     const email = document.getElementById("login-email")?.value || "";
     const password = document.getElementById("login-password")?.value || "";
     const errorNode = document.getElementById("login-error");
+
+    if (!isFirebaseConfigured) {
+      if (errorNode) {
+        errorNode.textContent = "Firebase credentials are missing. Add your Firebase config to enable login.";
+        errorNode.classList.remove("hidden");
+      }
+      return;
+    }
 
     try {
       if (errorNode) {
@@ -198,7 +214,7 @@ async function init() {
   watchAuthState(
     (user) => setLoggedInUi(user),
     () => setLoggedOutUi(),
-    (error) => showToast(error.message, "error")
+    () => {}
   );
 }
 
