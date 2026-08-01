@@ -62,9 +62,8 @@ export async function initializeFirebase() {
     return true;
   }
 
-  const forcedOffline = readOfflineMode();
   const runtimeOffline = typeof navigator !== "undefined" && navigator.onLine === false;
-  if (forcedOffline || runtimeOffline) {
+  if (runtimeOffline) {
     firebaseReady = false;
     return false;
   }

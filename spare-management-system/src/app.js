@@ -5,7 +5,6 @@ import { canAccess } from "./services/rbac.js";
 import {
   initializeFirebase,
   getFirebaseContext,
-  isOfflineModeEnabled,
 } from "./services/firebase.js";
 import { navItems, renderSidebar } from "./ui/sidebar.js";
 import { showToast } from "./ui/toast.js";
@@ -33,11 +32,6 @@ let syncInProgress = false;
 async function attemptOfflineSync(trigger = "manual") {
   if (syncInProgress) return;
 
-  if (isOfflineModeEnabled()) {
-    showToast("Disable offline mode before syncing.", "error");
-    return;
-  }
-
   if (!navigator.onLine) {
     showToast("Device is offline. Connect internet to sync.", "error");
     return;
@@ -51,7 +45,6 @@ async function attemptOfflineSync(trigger = "manual") {
   await initializeFirebase();
   const ctx = getFirebaseContext();
   if (!ctx.isFirebaseConfigured || !ctx.firebaseReady) {
-    showToast("Firebase is not configured. Sync unavailable.", "error");
     return;
   }
 
@@ -93,9 +86,8 @@ function render() {
   document.getElementById("user-role-badge").textContent = `${state.role}`;
   const modeBadge = document.getElementById("connection-badge");
   if (modeBadge) {
-    const isOffline = isOfflineModeEnabled() || navigator.onLine === false;
-    modeBadge.textContent = isOffline ? "Offline Mode" : "Online Mode";
-    modeBadge.classList.toggle("offline", isOffline);
+    modeBadge.textContent = navigator.onLine === false ? "Sync Paused" : "Sync Ready";
+    modeBadge.classList.toggle("offline", navigator.onLine === false);
   }
 
   renderModule(content, state, {
@@ -223,7 +215,7 @@ function setLoggedInUi(user) {
     attemptOfflineSync("post-login");
   }
 
-  if (hasPendingLocalSync() && !isOfflineModeEnabled() && navigator.onLine) {
+  if (hasPendingLocalSync() && navigator.onLine) {
     attemptOfflineSync("post-login-pending");
   }
 }
@@ -299,10 +291,6 @@ async function init() {
     navigator.serviceWorker.register("./service-worker.js").catch((error) => {
       console.warn("Service worker registration failed", error);
     });
-  }
-
-  if (isOfflineModeEnabled()) {
-    showToast("Offline mode is enabled. Using local storage data.");
   }
 
   render();
