@@ -73,6 +73,10 @@ function bindSidebarClicks() {
   document.querySelectorAll("[data-nav]").forEach((node) => {
     node.addEventListener("click", () => {
       state.currentModule = node.dataset.nav;
+      // On mobile, collapse the sidebar once a module is selected.
+      if (window.innerWidth <= 980) {
+        document.getElementById("sidebar")?.classList.remove("open");
+      }
       render();
     });
   });
