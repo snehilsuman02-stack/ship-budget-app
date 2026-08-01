@@ -4,12 +4,17 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Ship Budget Tracker</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+    <link rel="stylesheet" href="shared.css" />
     <link rel="stylesheet" href="style.css" />
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   </head>
-  <body>
+  <body data-page-key="home">
     <div id="login-screen" class="login-screen">
       <div class="login-panel">
         <h2>Login to Budget Tracker</h2>
@@ -28,7 +33,10 @@
         <p class="login-note">Enter credentials for the normal user or Logistics Officer account.</p>
       </div>
     </div>
-    <div class="app-shell"><header class="hero">
+    <div class="app-shell page-shell">
+      <div data-shared-nav></div>
+
+      <header class="hero">
       <div>
           <img src="WhatsApp Image 2026-07-12 at 3.51.55 AM.jpeg" alt="Ship tracker image" class="tracker-logo" />
           <h1>ICGS VIGRAHA</h1>
@@ -196,8 +204,11 @@
           <div id="expense-list" class="expense-list"></div>
         </section>
       </main>
+
+      <div data-shared-footer></div>
     </div>
 
+    <script src="shared-layout.js"></script>
     <script src="script.js"></script>
     <script>
       // If main script fails, keep the user informed on the login panel.

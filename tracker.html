@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Budget Tracker | Ship Budget Console</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+    <link rel="stylesheet" href="shared.css" />
+  </head>
+  <body data-page-key="tracker">
+    <div class="app-shell page-shell">
+      <div data-shared-nav></div>
+
+      <main class="module-main">
+        <section class="module-header-card">
+          <p class="module-eyebrow">Budget</p>
+          <h1 class="module-title" data-module-title>Budget Operations</h1>
+          <p class="module-subtitle" data-module-subtitle>Allocation planning and tracking modules for upcoming release waves.</p>
+        </section>
+
+        <section class="module-banner">
+          <strong data-module-name>Overview Module</strong>
+          <span class="module-badge">Roadmap</span>
+        </section>
+
+        <section class="module-grid">
+          <article class="module-card">
+            <h3>Allocation Designer</h3>
+            <p>Set fiscal ceilings by category, calendar quarter, and command-level priorities.</p>
+          </article>
+          <article class="module-card">
+            <h3>Expenditure Flow</h3>
+            <p>Monitor committed, approved, and consumed budget in near-real-time snapshots.</p>
+          </article>
+          <article class="module-card">
+            <h3>Forecast Scenarios</h3>
+            <p>Run best-case, target, and risk projections using historical category behavior.</p>
+          </article>
+        </section>
+      </main>
+
+      <div data-shared-footer></div>
+    </div>
+
+    <script src="shared-layout.js"></script>
+  </body>
+</html>
