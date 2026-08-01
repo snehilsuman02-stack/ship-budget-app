@@ -1,5 +1,5 @@
 import { signIn, signOutUser, watchAuthState, watchUserRole } from "./services/auth.js";
-import { subscribeCollection } from "./services/database.js";
+import { subscribeCollection, flushPendingOpsToFirebase, hasPendingLocalSync } from "./services/database.js";
 import { logAudit } from "./services/audit.js";
 import { canAccess } from "./services/rbac.js";
 import {
@@ -27,6 +27,53 @@ const state = {
 
 const subscriptions = [];
 let roleUnsubscribe = null;
+const SYNC_PENDING_KEY = "sms-sync-pending";
+let syncInProgress = false;
+
+async function attemptOfflineSync(trigger = "manual") {
+  if (syncInProgress) return;
+
+  if (isOfflineModeEnabled()) {
+    showToast("Disable offline mode before syncing.", "error");
+    return;
+  }
+
+  if (!navigator.onLine) {
+    showToast("Device is offline. Connect internet to sync.", "error");
+    return;
+  }
+
+  if (!state.user) {
+    showToast("Log in first to sync data.", "error");
+    return;
+  }
+
+  await initializeFirebase();
+  const ctx = getFirebaseContext();
+  if (!ctx.isFirebaseConfigured || !ctx.firebaseReady) {
+    showToast("Firebase is not configured. Sync unavailable.", "error");
+    return;
+  }
+
+  syncInProgress = true;
+  try {
+    const flushed = await flushPendingOpsToFirebase();
+    localStorage.removeItem(SYNC_PENDING_KEY);
+    await logAudit({
+      userId: state.user?.uid || "unknown",
+      role: state.role,
+      action: "sync",
+      module: "settings",
+      payload: { trigger, flushed, pendingLocal: hasPendingLocalSync() },
+    });
+    showToast(flushed > 0 ? `Offline changes synced to Firebase (${flushed}).` : "No offline changes to sync.");
+  } catch (error) {
+    console.error("Sync failed", error);
+    showToast(error.message || "Sync failed.", "error");
+  } finally {
+    syncInProgress = false;
+  }
+}
 
 function getAllowedKeys(role) {
   if (role === "admin") return new Set(["all"]);
@@ -171,6 +218,14 @@ function setLoggedInUi(user) {
       if (state.currentModule === "audit") render();
     })
   );
+
+  if (localStorage.getItem(SYNC_PENDING_KEY) === "1") {
+    attemptOfflineSync("post-login");
+  }
+
+  if (hasPendingLocalSync() && !isOfflineModeEnabled() && navigator.onLine) {
+    attemptOfflineSync("post-login-pending");
+  }
 }
 
 function bindGlobalUi() {
@@ -214,6 +269,16 @@ function bindGlobalUi() {
         errorNode.textContent = error.message;
         errorNode.classList.remove("hidden");
       }
+    }
+  });
+
+  window.addEventListener("sms-sync-now", () => {
+    attemptOfflineSync("manual");
+  });
+
+  window.addEventListener("online", () => {
+    if (localStorage.getItem(SYNC_PENDING_KEY) === "1" || hasPendingLocalSync()) {
+      attemptOfflineSync("network-online");
     }
   });
 }

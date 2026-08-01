@@ -3,6 +3,7 @@ import { firebaseConfig } from "../config/firebase-config.js";
 const hasConfig = Object.values(firebaseConfig).every((v) => typeof v === "string" && v && !v.startsWith("REPLACE_"));
 export const isFirebaseConfigured = hasConfig;
 const OFFLINE_MODE_KEY = "sms-offline-mode";
+const DEVICE_ID_KEY = "sms-device-id";
 
 let app = null;
 let auth = null;
@@ -32,6 +33,18 @@ function readOfflineMode() {
   }
 }
 
+function getDeviceId() {
+  try {
+    const existing = localStorage.getItem(DEVICE_ID_KEY);
+    if (existing) return existing;
+    const generated = `device-${Math.random().toString(36).slice(2, 10)}-${Date.now()}`;
+    localStorage.setItem(DEVICE_ID_KEY, generated);
+    return generated;
+  } catch {
+    return "device-ephemeral";
+  }
+}
+
 export function isOfflineModeEnabled() {
   return readOfflineMode();
 }
@@ -45,6 +58,10 @@ if (!hasConfig) {
 }
 
 export async function initializeFirebase() {
+  if (firebaseReady && app && auth && db) {
+    return true;
+  }
+
   const forcedOffline = readOfflineMode();
   const runtimeOffline = typeof navigator !== "undefined" && navigator.onLine === false;
   if (forcedOffline || runtimeOffline) {
@@ -64,7 +81,7 @@ export async function initializeFirebase() {
       import("https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js"),
     ]);
 
-    app = appMod.initializeApp(firebaseConfig);
+    app = app || appMod.initializeApp(firebaseConfig);
     auth = authMod.getAuth(app);
     db = dbMod.getDatabase(app);
 
@@ -101,5 +118,6 @@ export function getFirebaseContext() {
     firebaseReady,
     isFirebaseConfigured,
     isOfflineModeEnabled: readOfflineMode(),
+    deviceId: getDeviceId(),
   };
 }

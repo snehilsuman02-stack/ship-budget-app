@@ -2,6 +2,7 @@ import { getFirebaseContext } from "./firebase.js";
 
 const LOCAL_DB_KEY = "sms-local-db";
 const LOCAL_DB_EVENT = "sms-local-db-changed";
+const PENDING_OPS_KEY = "sms-pending-ops";
 
 function getPathParts(path) {
   return String(path || "").split("/").filter(Boolean);
@@ -31,6 +32,53 @@ function saveLocalDb(data) {
   window.dispatchEvent(new CustomEvent(LOCAL_DB_EVENT));
 }
 
+function readPendingOps() {
+  try {
+    const raw = localStorage.getItem(PENDING_OPS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writePendingOps(ops) {
+  localStorage.setItem(PENDING_OPS_KEY, JSON.stringify(ops));
+}
+
+function enqueuePendingOp(op) {
+  const ops = readPendingOps();
+  ops.push({ ...op, queuedAt: Date.now() });
+  writePendingOps(ops);
+}
+
+function clearPendingOps() {
+  localStorage.removeItem(PENDING_OPS_KEY);
+}
+
+function mutateLocalCollection(path, updater) {
+  const dbData = loadLocalDb();
+  const parts = getPathParts(path);
+  if (parts.length !== 1) throw new Error("Nested paths are not supported in local mode.");
+  const root = parts[0];
+  dbData[root] = dbData[root] || {};
+  dbData[root] = updater(dbData[root]);
+  saveLocalDb(dbData);
+}
+
+function saveLocalCollection(path, rows) {
+  const dbData = loadLocalDb();
+  const parts = getPathParts(path);
+  if (parts.length !== 1) throw new Error("Nested paths are not supported in local mode.");
+  const root = parts[0];
+  dbData[root] = Array.isArray(rows)
+    ? rows.reduce((acc, row) => {
+        if (row && row.id) acc[row.id] = { ...row, id: undefined };
+        return acc;
+      }, {})
+    : {};
+  saveLocalDb(dbData);
+}
+
 function readLocalCollection(path) {
   const dbData = loadLocalDb();
   const parts = getPathParts(path);
@@ -40,6 +88,10 @@ function readLocalCollection(path) {
     if (!node) return [];
   }
   return Object.entries(node || {}).map(([id, value]) => ({ id, ...value }));
+}
+
+export function getLocalDbSnapshot() {
+  return loadLocalDb();
 }
 
 function normalizeSnapshot(snapshot) {
@@ -59,7 +111,11 @@ export function subscribeCollection(path, callback, onError) {
   const target = firebaseApi.ref(db, path);
   return firebaseApi.onValue(
     target,
-    (snapshot) => callback(normalizeSnapshot(snapshot)),
+    (snapshot) => {
+      const rows = normalizeSnapshot(snapshot);
+      saveLocalCollection(path, rows);
+      callback(rows);
+    },
     (error) => {
       console.error("Realtime subscription failed", path, error);
       if (onError) onError(error);
@@ -79,15 +135,14 @@ export async function readCollection(path) {
 }
 
 export async function upsert(path, id, payload) {
-  const { db, firebaseApi, isFirebaseConfigured } = getFirebaseContext();
-  if (!isFirebaseConfigured || !db) {
-    const dbData = loadLocalDb();
-    const parts = getPathParts(path);
-    if (parts.length !== 1) throw new Error("Nested paths are not supported in local mode for upsert.");
-    const root = parts[0];
-    dbData[root] = dbData[root] || {};
-    dbData[root][id] = payload;
-    saveLocalDb(dbData);
+  const { db, firebaseApi, isFirebaseConfigured, isOfflineModeEnabled, deviceId } = getFirebaseContext();
+  mutateLocalCollection(path, (collection) => {
+    collection[id] = payload;
+    return collection;
+  });
+
+  if (!isFirebaseConfigured || !db || isOfflineModeEnabled()) {
+    enqueuePendingOp({ type: "upsert", path, id, payload, deviceId });
     return;
   }
 
@@ -96,18 +151,17 @@ export async function upsert(path, id, payload) {
 }
 
 export async function patch(path, id, payload) {
-  const { db, firebaseApi, isFirebaseConfigured } = getFirebaseContext();
-  if (!isFirebaseConfigured || !db) {
-    const dbData = loadLocalDb();
-    const parts = getPathParts(path);
-    if (parts.length !== 1) throw new Error("Nested paths are not supported in local mode for patch.");
-    const root = parts[0];
-    dbData[root] = dbData[root] || {};
-    dbData[root][id] = {
-      ...(dbData[root][id] || {}),
+  const { db, firebaseApi, isFirebaseConfigured, isOfflineModeEnabled, deviceId } = getFirebaseContext();
+  mutateLocalCollection(path, (collection) => {
+    collection[id] = {
+      ...(collection[id] || {}),
       ...payload,
     };
-    saveLocalDb(dbData);
+    return collection;
+  });
+
+  if (!isFirebaseConfigured || !db || isOfflineModeEnabled()) {
+    enqueuePendingOp({ type: "patch", path, id, payload, deviceId });
     return;
   }
 
@@ -116,10 +170,16 @@ export async function patch(path, id, payload) {
 }
 
 export async function create(path, payload) {
-  const { db, firebaseApi, isFirebaseConfigured } = getFirebaseContext();
-  if (!isFirebaseConfigured || !db) {
-    const id = crypto.randomUUID();
-    await upsert(path, id, payload);
+  const id = crypto.randomUUID();
+  const { db, firebaseApi, isFirebaseConfigured, isOfflineModeEnabled, deviceId } = getFirebaseContext();
+
+  mutateLocalCollection(path, (collection) => {
+    collection[id] = payload;
+    return collection;
+  });
+
+  if (!isFirebaseConfigured || !db || isOfflineModeEnabled()) {
+    enqueuePendingOp({ type: "create", path, id, payload, deviceId });
     return id;
   }
 
@@ -130,19 +190,58 @@ export async function create(path, payload) {
 }
 
 export async function removeById(path, id) {
-  const { db, firebaseApi, isFirebaseConfigured } = getFirebaseContext();
-  if (!isFirebaseConfigured || !db) {
-    const dbData = loadLocalDb();
-    const parts = getPathParts(path);
-    if (parts.length !== 1) throw new Error("Nested paths are not supported in local mode for delete.");
-    const root = parts[0];
-    if (dbData[root] && dbData[root][id]) {
-      delete dbData[root][id];
-      saveLocalDb(dbData);
-    }
+  const { db, firebaseApi, isFirebaseConfigured, isOfflineModeEnabled, deviceId } = getFirebaseContext();
+  mutateLocalCollection(path, (collection) => {
+    if (collection[id]) delete collection[id];
+    return collection;
+  });
+
+  if (!isFirebaseConfigured || !db || isOfflineModeEnabled()) {
+    enqueuePendingOp({ type: "remove", path, id, deviceId });
     return;
   }
 
   const target = firebaseApi.ref(db, `${path}/${id}`);
   await firebaseApi.remove(target);
+}
+
+export async function syncLocalCollectionsToFirebase(collections = []) {
+  const { db, firebaseApi, isFirebaseConfigured, firebaseReady } = getFirebaseContext();
+  if (!isFirebaseConfigured || !db || !firebaseReady) {
+    throw new Error("Firebase is not ready for sync.");
+  }
+
+  const localDb = loadLocalDb();
+  for (const collection of collections) {
+    const payload = localDb[collection] || {};
+    const target = firebaseApi.ref(db, collection);
+    await firebaseApi.set(target, payload);
+  }
+}
+
+export async function flushPendingOpsToFirebase() {
+  const { db, firebaseApi, isFirebaseConfigured, firebaseReady } = getFirebaseContext();
+  if (!isFirebaseConfigured || !db || !firebaseReady) {
+    throw new Error("Firebase is not ready for sync.");
+  }
+
+  const ops = readPendingOps();
+  if (!ops.length) return 0;
+
+  for (const op of ops) {
+    if (op.type === "create" || op.type === "upsert") {
+      await firebaseApi.set(firebaseApi.ref(db, `${op.path}/${op.id}`), op.payload);
+    } else if (op.type === "patch") {
+      await firebaseApi.update(firebaseApi.ref(db, `${op.path}/${op.id}`), op.payload);
+    } else if (op.type === "remove") {
+      await firebaseApi.remove(firebaseApi.ref(db, `${op.path}/${op.id}`));
+    }
+  }
+
+  clearPendingOps();
+  return ops.length;
+}
+
+export function hasPendingLocalSync() {
+  return readPendingOps().length > 0;
 }
