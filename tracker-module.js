@@ -39,6 +39,43 @@
     }, {});
   }
 
+  function getYearMonths(year) {
+    return Array.from({ length: 12 }, function (_item, index) {
+      const month = index + 1;
+      return year + "-" + String(month).padStart(2, "0");
+    });
+  }
+
+  function formatMonthLabel(yearMonth) {
+    const parts = yearMonth.split("-");
+    const year = Number(parts[0]);
+    const month = Number(parts[1]) - 1;
+    return new Date(year, month, 1).toLocaleString("default", { month: "short" });
+  }
+
+  function buildHeadMonthBreakup(expenses, year) {
+    const months = getYearMonths(year);
+    const breakdown = Object.keys(defaultBudgetCaps).reduce(function (acc, category) {
+      acc[category] = months.reduce(function (monthMap, monthKey) {
+        monthMap[monthKey] = 0;
+        return monthMap;
+      }, {});
+      return acc;
+    }, {});
+
+    expenses.forEach(function (expense) {
+      if (!expense || !expense.date) return;
+      const expenseDate = new Date(expense.date);
+      if (expenseDate.getFullYear() !== year) return;
+      const monthKey = expenseDate.getFullYear() + "-" + String(expenseDate.getMonth() + 1).padStart(2, "0");
+      const category = expense.category || "Uncategorized";
+      if (!breakdown[category]) return;
+      breakdown[category][monthKey] += Number(expense.amount) || 0;
+    });
+
+    return breakdown;
+  }
+
   function readState() {
     try {
       const raw = localStorage.getItem(storageKey);
@@ -133,5 +170,81 @@
       '</section>';
   }
 
-  window.addEventListener("DOMContentLoaded", renderStatusModule);
+  function renderMonthwiseBreakupModule() {
+    const params = new URLSearchParams(window.location.search);
+    const moduleName = (params.get("module") || "").toLowerCase();
+    // Show month-wise breakup in the default Budget Tracker view.
+    if (moduleName && moduleName !== "tracker") return;
+
+    const moduleGrid = document.querySelector(".module-grid");
+    if (!moduleGrid) return;
+
+    const state = readState();
+    const users = (state && state.users) || {};
+    const currentUser = (state && state.currentUser) || Object.keys(users)[0] || "user";
+    const userData = users[currentUser] || { expenses: [] };
+    const expenses = Array.isArray(userData.expenses) ? userData.expenses : [];
+    const asOfDate = (state && state.asOfDate) || new Date().toISOString().split("T")[0];
+    const year = new Date(asOfDate).getFullYear();
+    const months = getYearMonths(year);
+    const breakdown = buildHeadMonthBreakup(expenses, year);
+
+    const headerCells = months
+      .map(function (monthKey) {
+        return "<th>" + formatMonthLabel(monthKey) + "</th>";
+      })
+      .join("");
+
+    const rows = Object.entries(breakdown)
+      .map(function (entry) {
+        const category = entry[0];
+        const monthData = entry[1];
+        const cells = months
+          .map(function (monthKey) {
+            return "<td>" + formatCurrency(monthData[monthKey] || 0) + "</td>";
+          })
+          .join("");
+        const total = Object.values(monthData).reduce(function (sum, value) {
+          return sum + Number(value || 0);
+        }, 0);
+        return "<tr><td>" + category + "</td>" + cells + "<td>" + formatCurrency(total) + "</td></tr>";
+      })
+      .join("");
+
+    const totalByMonth = months
+      .map(function (monthKey) {
+        const sum = Object.values(breakdown).reduce(function (monthSum, monthData) {
+          return monthSum + Number(monthData[monthKey] || 0);
+        }, 0);
+        return "<td>" + formatCurrency(sum) + "</td>";
+      })
+      .join("");
+
+    const yearlyTotal = Object.values(breakdown).reduce(function (sum, monthData) {
+      return (
+        sum +
+        Object.values(monthData).reduce(function (monthSum, value) {
+          return monthSum + Number(value || 0);
+        }, 0)
+      );
+    }, 0);
+
+    moduleGrid.innerHTML =
+      '<section class="module-card monthwise-module-shell" style="grid-column: 1 / -1;">' +
+      "<h3>Month-wise breakup for all heads</h3>" +
+      "<p class=\"module-subtitle\">Year " + year + " expenditure for " + currentUser + " as of " + asOfDate + ".</p>" +
+      '<div class="monthwise-wrap">' +
+      '<table class="monthwise-table">' +
+      "<thead><tr><th>Head</th>" + headerCells + "<th>Total</th></tr></thead>" +
+      "<tbody>" + rows + "</tbody>" +
+      "<tfoot><tr><td>Grand Total</td>" + totalByMonth + "<td>" + formatCurrency(yearlyTotal) + "</td></tr></tfoot>" +
+      "</table>" +
+      "</div>" +
+      "</section>";
+  }
+
+  window.addEventListener("DOMContentLoaded", function () {
+    renderStatusModule();
+    renderMonthwiseBreakupModule();
+  });
 })();
