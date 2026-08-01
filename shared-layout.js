@@ -16,6 +16,7 @@
         { label: "Budget Allocation", href: "tracker.html?module=allocation", icon: "bi-pie-chart" },
         { label: "Expenditure", href: "tracker.html?module=expenditure", icon: "bi-cash-stack" },
         { label: "Budget Tracker", href: "tracker.html", icon: "bi-kanban" },
+        { label: "Budget Status", href: "tracker.html?module=status", icon: "bi-activity" },
         { label: "Budget Forecast", href: "tracker.html?module=forecast", icon: "bi-clipboard2-data" },
       ],
     },
