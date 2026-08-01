@@ -1,4 +1,4 @@
-import { auth, db, firebaseApi, isFirebaseConfigured } from "./firebase.js";
+import { getFirebaseContext } from "./firebase.js";
 
 const TEST_USERNAME = "user";
 const TEST_PASSWORD = "user";
@@ -22,6 +22,7 @@ function clearLocalTestUser() {
 }
 
 export function watchAuthState(onSignedIn, onSignedOut, onError) {
+  const { auth, firebaseApi, isFirebaseConfigured } = getFirebaseContext();
   if (!isFirebaseConfigured || !auth) {
     const localUser = loadLocalTestUser();
     if (localUser) onSignedIn(localUser);
@@ -43,6 +44,7 @@ export function watchAuthState(onSignedIn, onSignedOut, onError) {
 }
 
 export async function signIn(email, password) {
+  const { auth, firebaseApi, isFirebaseConfigured } = getFirebaseContext();
   if (!isFirebaseConfigured || !auth) {
     if (String(email).trim().toLowerCase() === TEST_USERNAME && String(password) === TEST_PASSWORD) {
       const localUser = {
@@ -70,6 +72,7 @@ export async function signIn(email, password) {
 }
 
 export async function signOutUser() {
+  const { auth, firebaseApi, isFirebaseConfigured } = getFirebaseContext();
   if (!isFirebaseConfigured || !auth) {
     clearLocalTestUser();
     return;
@@ -78,6 +81,7 @@ export async function signOutUser() {
 }
 
 export function watchUserRole(uid, callback, onError) {
+  const { auth, db, firebaseApi, isFirebaseConfigured } = getFirebaseContext();
   if (!isFirebaseConfigured || !db) {
     callback("admin");
     return () => {};

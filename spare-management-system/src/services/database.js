@@ -1,4 +1,4 @@
-import { db, firebaseApi, isFirebaseConfigured } from "./firebase.js";
+import { getFirebaseContext } from "./firebase.js";
 
 const LOCAL_DB_KEY = "sms-local-db";
 const LOCAL_DB_EVENT = "sms-local-db-changed";
@@ -48,6 +48,7 @@ function normalizeSnapshot(snapshot) {
 }
 
 export function subscribeCollection(path, callback, onError) {
+  const { db, firebaseApi, isFirebaseConfigured } = getFirebaseContext();
   if (!isFirebaseConfigured || !db) {
     const run = () => callback(readLocalCollection(path));
     run();
@@ -67,6 +68,7 @@ export function subscribeCollection(path, callback, onError) {
 }
 
 export async function readCollection(path) {
+  const { db, firebaseApi, isFirebaseConfigured } = getFirebaseContext();
   if (!isFirebaseConfigured || !db) {
     return readLocalCollection(path);
   }
@@ -77,6 +79,7 @@ export async function readCollection(path) {
 }
 
 export async function upsert(path, id, payload) {
+  const { db, firebaseApi, isFirebaseConfigured } = getFirebaseContext();
   if (!isFirebaseConfigured || !db) {
     const dbData = loadLocalDb();
     const parts = getPathParts(path);
@@ -93,6 +96,7 @@ export async function upsert(path, id, payload) {
 }
 
 export async function patch(path, id, payload) {
+  const { db, firebaseApi, isFirebaseConfigured } = getFirebaseContext();
   if (!isFirebaseConfigured || !db) {
     const dbData = loadLocalDb();
     const parts = getPathParts(path);
@@ -112,6 +116,7 @@ export async function patch(path, id, payload) {
 }
 
 export async function create(path, payload) {
+  const { db, firebaseApi, isFirebaseConfigured } = getFirebaseContext();
   if (!isFirebaseConfigured || !db) {
     const id = crypto.randomUUID();
     await upsert(path, id, payload);
@@ -125,6 +130,7 @@ export async function create(path, payload) {
 }
 
 export async function removeById(path, id) {
+  const { db, firebaseApi, isFirebaseConfigured } = getFirebaseContext();
   if (!isFirebaseConfigured || !db) {
     const dbData = loadLocalDb();
     const parts = getPathParts(path);
