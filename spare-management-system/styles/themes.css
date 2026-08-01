@@ -1,0 +1,18 @@
+html[data-theme="light"] {
+  --bg: #eef2fb;
+  --bg-2: #f8faff;
+  --panel: #ffffff;
+  --panel-2: #f3f6ff;
+  --text: #111a2f;
+  --muted: #53627c;
+  --accent: #2563eb;
+  --accent-2: #0f9f70;
+  --danger: #e11d48;
+  --warning: #c97a00;
+  --border: rgba(17, 26, 47, 0.12);
+  --shadow: 0 12px 24px rgba(17, 26, 47, 0.12);
+}
+
+html[data-theme="light"] body {
+  background: linear-gradient(140deg, #f9fbff, #e8efff);
+}
