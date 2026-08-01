@@ -101,11 +101,13 @@
         <section class="content-grid">
           <div class="card chart-card">
             <div class="card-header">
-              <h3>Budget status</h3>
-              <span id="status-pill" class="status-pill">Healthy</span>
+              <h3>Budget status moved</h3>
+              <span id="status-pill" class="status-pill hidden">Healthy</span>
             </div>
-            <div class="as-of-date-text">Showing spending as of <strong id="as-of-date-label"></strong></div>
-            <div class="progress-list" id="progress-list"></div>
+            <p class="expense-meta">Budget status details are now available under Budget -> Budget Status.</p>
+            <a class="claim-btn" href="tracker.html?module=status">Open Budget Status Module</a>
+            <div class="as-of-date-text hidden">Showing spending as of <strong id="as-of-date-label"></strong></div>
+            <div class="progress-list hidden" id="progress-list"></div>
           </div>
 
           <div class="card donut-card">

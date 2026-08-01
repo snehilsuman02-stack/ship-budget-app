@@ -250,6 +250,87 @@ body.page-leave .page-shell {
   font-size: 0.92rem;
 }
 
+.budget-status-shell {
+  display: grid;
+  gap: 14px;
+}
+
+.status-topline {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--enterprise-muted);
+  font-size: 0.92rem;
+}
+
+.status-health-pill {
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+}
+
+.status-health-pill.healthy {
+  color: #9be9c5;
+  background: rgba(61, 220, 151, 0.12);
+  border-color: rgba(61, 220, 151, 0.26);
+}
+
+.status-health-pill.watch {
+  color: #ffdea8;
+  background: rgba(255, 178, 76, 0.15);
+  border-color: rgba(255, 178, 76, 0.28);
+}
+
+.status-health-pill.critical {
+  color: #ffc0c0;
+  background: rgba(255, 97, 97, 0.15);
+  border-color: rgba(255, 97, 97, 0.3);
+}
+
+.status-item {
+  border: 1px solid var(--enterprise-border);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.02);
+  padding: 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.status-label-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--enterprise-text);
+  font-size: 0.94rem;
+}
+
+.status-muted-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  color: var(--enterprise-muted);
+  font-size: 0.86rem;
+}
+
+.status-bar {
+  width: 100%;
+  height: 10px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.status-bar-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--enterprise-accent), var(--enterprise-accent-2));
+}
+
 .module-banner {
   padding: 16px 18px;
   display: flex;
