@@ -2,6 +2,7 @@ import { signIn, signOutUser, watchAuthState, watchUserRole } from "./services/a
 import { subscribeCollection } from "./services/database.js";
 import { logAudit } from "./services/audit.js";
 import { canAccess } from "./services/rbac.js";
+import { isFirebaseConfigured } from "./services/firebase.js";
 import { navItems, renderSidebar } from "./ui/sidebar.js";
 import { showToast } from "./ui/toast.js";
 import { renderModule } from "./router.js";
@@ -189,7 +190,10 @@ function bindGlobalUi() {
         errorNode.textContent = "";
         errorNode.classList.add("hidden");
       }
-      await signIn(email, password);
+      const user = await signIn(email, password);
+      if (!isFirebaseConfigured && user) {
+        setLoggedInUi(user);
+      }
     } catch (error) {
       if (errorNode) {
         errorNode.textContent = error.message;
