@@ -2,6 +2,7 @@ import { firebaseConfig } from "../config/firebase-config.js";
 
 const hasConfig = Object.values(firebaseConfig).every((v) => typeof v === "string" && v && !v.startsWith("REPLACE_"));
 export const isFirebaseConfigured = hasConfig;
+const OFFLINE_MODE_KEY = "sms-offline-mode";
 
 let app = null;
 let auth = null;
@@ -23,11 +24,34 @@ let firebaseApi = {
   serverTimestamp: null,
 };
 
+function readOfflineMode() {
+  try {
+    return localStorage.getItem(OFFLINE_MODE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function isOfflineModeEnabled() {
+  return readOfflineMode();
+}
+
+export function setOfflineMode(enabled) {
+  localStorage.setItem(OFFLINE_MODE_KEY, enabled ? "1" : "0");
+}
+
 if (!hasConfig) {
   console.warn("Firebase config is not set. Update src/config/firebase-config.js before production use.");
 }
 
 export async function initializeFirebase() {
+  const forcedOffline = readOfflineMode();
+  const runtimeOffline = typeof navigator !== "undefined" && navigator.onLine === false;
+  if (forcedOffline || runtimeOffline) {
+    firebaseReady = false;
+    return false;
+  }
+
   if (!hasConfig) {
     firebaseReady = false;
     return false;
@@ -76,5 +100,6 @@ export function getFirebaseContext() {
     firebaseApi,
     firebaseReady,
     isFirebaseConfigured,
+    isOfflineModeEnabled: readOfflineMode(),
   };
 }

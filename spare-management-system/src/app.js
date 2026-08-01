@@ -2,7 +2,11 @@ import { signIn, signOutUser, watchAuthState, watchUserRole } from "./services/a
 import { subscribeCollection } from "./services/database.js";
 import { logAudit } from "./services/audit.js";
 import { canAccess } from "./services/rbac.js";
-import { initializeFirebase, getFirebaseContext } from "./services/firebase.js";
+import {
+  initializeFirebase,
+  getFirebaseContext,
+  isOfflineModeEnabled,
+} from "./services/firebase.js";
 import { navItems, renderSidebar } from "./ui/sidebar.js";
 import { showToast } from "./ui/toast.js";
 import { renderModule } from "./router.js";
@@ -40,6 +44,12 @@ function render() {
 
   renderSidebar(state.currentModule, allowedKeys);
   document.getElementById("user-role-badge").textContent = `${state.role}`;
+  const modeBadge = document.getElementById("connection-badge");
+  if (modeBadge) {
+    const isOffline = isOfflineModeEnabled() || navigator.onLine === false;
+    modeBadge.textContent = isOffline ? "Offline Mode" : "Online Mode";
+    modeBadge.classList.toggle("offline", isOffline);
+  }
 
   renderModule(content, state, {
     render,
@@ -219,6 +229,17 @@ async function init() {
   initializeTheme();
   await initializeFirebase();
   bindGlobalUi();
+
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("./service-worker.js").catch((error) => {
+      console.warn("Service worker registration failed", error);
+    });
+  }
+
+  if (isOfflineModeEnabled()) {
+    showToast("Offline mode is enabled. Using local storage data.");
+  }
+
   render();
 
   watchAuthState(

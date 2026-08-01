@@ -1,5 +1,8 @@
+import { isOfflineModeEnabled, setOfflineMode } from "../services/firebase.js";
+
 export function renderSettings(container, state, ctx) {
   const currentTheme = document.documentElement.dataset.theme || "dark";
+  const offlineEnabled = isOfflineModeEnabled();
 
   container.innerHTML = `
     <section class="card grid">
@@ -12,6 +15,12 @@ export function renderSettings(container, state, ctx) {
             <option value="light" ${currentTheme === "light" ? "selected" : ""}>Light</option>
           </select>
         </label>
+        <label>Offline mode
+          <select id="offline-picker">
+            <option value="0" ${offlineEnabled ? "" : "selected"}>Disabled</option>
+            <option value="1" ${offlineEnabled ? "selected" : ""}>Enabled</option>
+          </select>
+        </label>
       </div>
       <p class="meta">Current user: ${state.user?.email || "-"} | Role: ${state.role}</p>
     </section>
@@ -22,5 +31,12 @@ export function renderSettings(container, state, ctx) {
     document.documentElement.dataset.theme = next;
     localStorage.setItem("sms-theme", next);
     ctx.toast(`Theme switched to ${next}.`);
+  });
+
+  container.querySelector("#offline-picker").addEventListener("change", (e) => {
+    const enabled = e.target.value === "1";
+    setOfflineMode(enabled);
+    ctx.toast(enabled ? "Offline mode enabled. Reloading app." : "Offline mode disabled. Reloading app.");
+    setTimeout(() => window.location.reload(), 250);
   });
 }
