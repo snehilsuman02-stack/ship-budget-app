@@ -2,31 +2,12 @@ import { getFirebaseContext } from "./firebase.js";
 
 const TEST_USERNAME = "user";
 const TEST_PASSWORD = "user";
-const LOCAL_TEST_USER_KEY = "sms-local-test-user";
-
-function loadLocalTestUser() {
-  try {
-    const raw = localStorage.getItem(LOCAL_TEST_USER_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-}
-
-function saveLocalTestUser(user) {
-  localStorage.setItem(LOCAL_TEST_USER_KEY, JSON.stringify(user));
-}
-
-function clearLocalTestUser() {
-  localStorage.removeItem(LOCAL_TEST_USER_KEY);
-}
 
 export function watchAuthState(onSignedIn, onSignedOut, onError) {
   const { auth, firebaseApi, isFirebaseConfigured } = getFirebaseContext();
-  if (!isFirebaseConfigured || !auth) {
-    const localUser = loadLocalTestUser();
-    if (localUser) onSignedIn(localUser);
-    else onSignedOut();
+  if (!isFirebaseConfigured || !auth || !firebaseApi.onAuthStateChanged) {
+    if (onError) onError(new Error("Firebase authentication is not ready."));
+    onSignedOut();
     return () => {};
   }
 
@@ -46,19 +27,9 @@ export function watchAuthState(onSignedIn, onSignedOut, onError) {
 export async function signIn(email, password) {
   const { auth, firebaseApi, isFirebaseConfigured } = getFirebaseContext();
   if (!isFirebaseConfigured || !auth) {
-    if (String(email).trim().toLowerCase() === TEST_USERNAME && String(password) === TEST_PASSWORD) {
-      const localUser = {
-        uid: "local-test-user",
-        email: "user@test.local",
-        isLocalTest: true,
-      };
-      saveLocalTestUser(localUser);
-      return localUser;
-    }
-    throw new Error("Invalid test credentials. Use user / user, or configure Firebase credentials.");
+    throw new Error("Firebase authentication is not configured.");
   }
 
-  // Temporary test-period login: user / user
   if (String(email).trim().toLowerCase() === TEST_USERNAME && String(password) === TEST_PASSWORD) {
     if (!firebaseApi.signInAnonymously) {
       throw new Error("Anonymous sign-in not available. Enable it in Firebase Authentication.");
@@ -72,18 +43,31 @@ export async function signIn(email, password) {
 }
 
 export async function signOutUser() {
-  const { auth, firebaseApi, isFirebaseConfigured } = getFirebaseContext();
-  if (!isFirebaseConfigured || !auth) {
-    clearLocalTestUser();
-    return;
-  }
+  const { auth, firebaseApi } = getFirebaseContext();
+  if (!auth || !firebaseApi.signOut) return;
   await firebaseApi.signOut(auth);
+}
+
+export async function ensureFirebaseSession() {
+  const { auth, firebaseApi, isFirebaseConfigured } = getFirebaseContext();
+  if (!isFirebaseConfigured || !auth) return null;
+  if (auth.currentUser) return auth.currentUser;
+  if (!firebaseApi.signInAnonymously) return null;
+
+  try {
+    const result = await firebaseApi.signInAnonymously(auth);
+    return result.user || null;
+  } catch (error) {
+    console.warn("Silent Firebase session bootstrap failed", error);
+    return null;
+  }
 }
 
 export function watchUserRole(uid, callback, onError) {
   const { auth, db, firebaseApi, isFirebaseConfigured } = getFirebaseContext();
-  if (!isFirebaseConfigured || !db) {
-    callback("admin");
+  if (!isFirebaseConfigured || !db || !firebaseApi.onValue || !firebaseApi.ref) {
+    if (onError) onError(new Error("Firebase database is not ready."));
+    callback("viewer");
     return () => {};
   }
 
@@ -95,7 +79,7 @@ export function watchUserRole(uid, callback, onError) {
       if (!value) {
         await firebaseApi.set(roleRef, {
           role: "viewer",
-          displayName: auth.currentUser?.email || "User",
+          displayName: auth?.currentUser?.email || "User",
           createdAt: Date.now(),
         });
         callback("viewer");

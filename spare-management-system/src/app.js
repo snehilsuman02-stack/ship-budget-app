@@ -1,11 +1,8 @@
-import { signIn, signOutUser, watchAuthState, watchUserRole } from "./services/auth.js";
-import { subscribeCollection, flushPendingOpsToFirebase, hasPendingLocalSync } from "./services/database.js";
+import { ensureFirebaseSession, signIn, signOutUser, watchAuthState, watchUserRole } from "./services/auth.js";
+import { subscribeCollection } from "./services/database.js";
 import { logAudit } from "./services/audit.js";
 import { canAccess } from "./services/rbac.js";
-import {
-  initializeFirebase,
-  getFirebaseContext,
-} from "./services/firebase.js";
+import { initializeFirebase, getFirebaseContext } from "./services/firebase.js";
 import { navItems, renderSidebar } from "./ui/sidebar.js";
 import { showToast } from "./ui/toast.js";
 import { renderModule } from "./router.js";
@@ -26,47 +23,6 @@ const state = {
 
 const subscriptions = [];
 let roleUnsubscribe = null;
-const SYNC_PENDING_KEY = "sms-sync-pending";
-let syncInProgress = false;
-
-async function attemptOfflineSync(trigger = "manual") {
-  if (syncInProgress) return;
-
-  if (!navigator.onLine) {
-    showToast("Device is offline. Connect internet to sync.", "error");
-    return;
-  }
-
-  if (!state.user) {
-    showToast("Log in first to sync data.", "error");
-    return;
-  }
-
-  await initializeFirebase();
-  const ctx = getFirebaseContext();
-  if (!ctx.isFirebaseConfigured || !ctx.firebaseReady) {
-    return;
-  }
-
-  syncInProgress = true;
-  try {
-    const flushed = await flushPendingOpsToFirebase();
-    localStorage.removeItem(SYNC_PENDING_KEY);
-    await logAudit({
-      userId: state.user?.uid || "unknown",
-      role: state.role,
-      action: "sync",
-      module: "settings",
-      payload: { trigger, flushed, pendingLocal: hasPendingLocalSync() },
-    });
-    showToast(flushed > 0 ? `Offline changes synced to Firebase (${flushed}).` : "No offline changes to sync.");
-  } catch (error) {
-    console.error("Sync failed", error);
-    showToast(error.message || "Sync failed.", "error");
-  } finally {
-    syncInProgress = false;
-  }
-}
 
 function getAllowedKeys(role) {
   if (role === "admin") return new Set(["all"]);
@@ -83,11 +39,13 @@ function render() {
   }
 
   renderSidebar(state.currentModule, allowedKeys);
-  document.getElementById("user-role-badge").textContent = `${state.role}`;
-  const modeBadge = document.getElementById("connection-badge");
-  if (modeBadge) {
-    modeBadge.textContent = navigator.onLine === false ? "Sync Paused" : "Sync Ready";
-    modeBadge.classList.toggle("offline", navigator.onLine === false);
+  const roleBadge = document.getElementById("user-role-badge");
+  if (roleBadge) roleBadge.textContent = `${state.role}`;
+
+  const statusBadge = document.getElementById("connection-badge");
+  if (statusBadge) {
+    const { firebaseReady } = getFirebaseContext();
+    statusBadge.textContent = firebaseReady ? "Cloud Live" : "Cloud Pending";
   }
 
   renderModule(content, state, {
@@ -122,7 +80,6 @@ function bindSidebarClicks() {
   document.querySelectorAll("[data-nav]").forEach((node) => {
     node.addEventListener("click", () => {
       state.currentModule = node.dataset.nav;
-      // On mobile, collapse the sidebar once a module is selected.
       if (window.innerWidth <= 980) {
         document.getElementById("sidebar")?.classList.remove("open");
       }
@@ -165,59 +122,22 @@ function setLoggedInUi(user) {
     (error) => showToast(error.message, "error")
   );
 
-  subscriptions.push(
-    subscribeCollection("spares", (rows) => {
-      state.data.spares = rows;
-      render();
-    })
-  );
-
-  subscriptions.push(
-    subscribeCollection("transactions", (rows) => {
-      state.data.transactions = rows;
-      render();
-    })
-  );
-
-  subscriptions.push(
-    subscribeCollection("purchaseRequests", (rows) => {
-      state.data.purchaseRequests = rows;
-      render();
-    })
-  );
-
-  subscriptions.push(
-    subscribeCollection("vendors", (rows) => {
-      state.data.vendors = rows;
-      render();
-    })
-  );
-
-  subscriptions.push(
-    subscribeCollection("alerts", (rows) => {
-      state.data.alerts = rows;
-      render();
-      const openLowStock = rows.filter((a) => a.type === "low-stock" && a.status === "open");
-      if (openLowStock.length) {
-        showToast(`${openLowStock.length} low stock alert(s) active.`);
-      }
-    })
-  );
-
-  subscriptions.push(
-    subscribeCollection("auditLogs", (rows) => {
-      state.data.auditLogs = rows;
-      if (state.currentModule === "audit") render();
-    })
-  );
-
-  if (localStorage.getItem(SYNC_PENDING_KEY) === "1") {
-    attemptOfflineSync("post-login");
-  }
-
-  if (hasPendingLocalSync() && navigator.onLine) {
-    attemptOfflineSync("post-login-pending");
-  }
+  subscriptions.push(subscribeCollection("spares", (rows) => { state.data.spares = rows; render(); }));
+  subscriptions.push(subscribeCollection("transactions", (rows) => { state.data.transactions = rows; render(); }));
+  subscriptions.push(subscribeCollection("purchaseRequests", (rows) => { state.data.purchaseRequests = rows; render(); }));
+  subscriptions.push(subscribeCollection("vendors", (rows) => { state.data.vendors = rows; render(); }));
+  subscriptions.push(subscribeCollection("alerts", (rows) => {
+    state.data.alerts = rows;
+    render();
+    const openLowStock = rows.filter((a) => a.type === "low-stock" && a.status === "open");
+    if (openLowStock.length) {
+      showToast(`${openLowStock.length} low stock alert(s) active.`);
+    }
+  }));
+  subscriptions.push(subscribeCollection("auditLogs", (rows) => {
+    state.data.auditLogs = rows;
+    if (state.currentModule === "audit") render();
+  }));
 }
 
 function bindGlobalUi() {
@@ -251,26 +171,12 @@ function bindGlobalUi() {
         errorNode.textContent = "";
         errorNode.classList.add("hidden");
       }
-      const user = await signIn(email, password);
-      const { isFirebaseConfigured } = getFirebaseContext();
-      if (!isFirebaseConfigured && user) {
-        setLoggedInUi(user);
-      }
+      await signIn(email, password);
     } catch (error) {
       if (errorNode) {
         errorNode.textContent = error.message;
         errorNode.classList.remove("hidden");
       }
-    }
-  });
-
-  window.addEventListener("sms-sync-now", () => {
-    attemptOfflineSync("manual");
-  });
-
-  window.addEventListener("online", () => {
-    if (localStorage.getItem(SYNC_PENDING_KEY) === "1" || hasPendingLocalSync()) {
-      attemptOfflineSync("network-online");
     }
   });
 }
@@ -285,14 +191,8 @@ function initializeTheme() {
 async function init() {
   initializeTheme();
   await initializeFirebase();
+  await ensureFirebaseSession();
   bindGlobalUi();
-
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("./service-worker.js").catch((error) => {
-      console.warn("Service worker registration failed", error);
-    });
-  }
-
   render();
 
   watchAuthState(

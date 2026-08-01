@@ -47,12 +47,6 @@ button.primary {
   color: var(--muted);
 }
 
-.role-badge.offline {
-  color: #ffcf92;
-  border-color: rgba(255, 177, 77, 0.4);
-  background: rgba(255, 177, 77, 0.12);
-}
-
 .grid {
   display: grid;
   gap: 14px;

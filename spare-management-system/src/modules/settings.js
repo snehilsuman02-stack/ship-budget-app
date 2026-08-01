@@ -1,5 +1,3 @@
-// Settings stays silent about offline state; sync is handled automatically.
-
 export function renderSettings(container, state, ctx) {
   const currentTheme = document.documentElement.dataset.theme || "dark";
 
@@ -14,7 +12,6 @@ export function renderSettings(container, state, ctx) {
             <option value="light" ${currentTheme === "light" ? "selected" : ""}>Light</option>
           </select>
         </label>
-        <button id="sync-now-btn" type="button">Sync now</button>
       </div>
       <p class="meta">Current user: ${state.user?.email || "-"} | Role: ${state.role}</p>
     </section>
@@ -25,9 +22,5 @@ export function renderSettings(container, state, ctx) {
     document.documentElement.dataset.theme = next;
     localStorage.setItem("sms-theme", next);
     ctx.toast(`Theme switched to ${next}.`);
-  });
-
-  container.querySelector("#sync-now-btn").addEventListener("click", () => {
-    window.dispatchEvent(new CustomEvent("sms-sync-now"));
   });
 }
