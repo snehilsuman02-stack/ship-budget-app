@@ -1,0 +1,38 @@
+label {
+  display: block;
+  font-size: 0.83rem;
+  font-weight: 700;
+  color: var(--slate-500);
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  margin-top: 6px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: var(--white);
+  color: var(--ink-900);
+}
+
+:root[data-theme="dark"] input,
+:root[data-theme="dark"] select,
+:root[data-theme="dark"] textarea {
+  background: #0a2035;
+}
+
+input:focus,
+select:focus,
+textarea:focus,
+button:focus {
+  outline: 2px solid rgba(47, 127, 191, 0.34);
+  outline-offset: 2px;
+}
+
+.form-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}

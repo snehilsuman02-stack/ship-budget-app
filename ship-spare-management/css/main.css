@@ -1,0 +1,239 @@
+:root {
+  --navy-950: #061526;
+  --navy-900: #0c2238;
+  --navy-800: #15314d;
+  --sea-500: #2f7fbf;
+  --mint-500: #24a892;
+  --slate-200: #dbe3ee;
+  --slate-300: #c4cfdd;
+  --slate-500: #6f7f94;
+  --ink-900: #0f1720;
+  --white: #ffffff;
+  --warning: #d58a00;
+  --danger: #be2f3d;
+  --success: #1a8f63;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --shadow-1: 0 8px 22px rgba(12, 34, 56, 0.1);
+  --shadow-2: 0 16px 36px rgba(4, 18, 32, 0.16);
+  --border: #dbe3ee;
+}
+
+:root[data-theme="dark"] {
+  --navy-950: #04111f;
+  --navy-900: #071a2f;
+  --navy-800: #102840;
+  --sea-500: #4f96d0;
+  --mint-500: #2ab9a1;
+  --slate-200: #b3c2d6;
+  --slate-300: #8ca0b8;
+  --slate-500: #607890;
+  --ink-900: #dbe8f7;
+  --white: #0b1b2d;
+  --warning: #e3a11c;
+  --danger: #d74f5a;
+  --success: #31ab7d;
+  --border: rgba(179, 194, 214, 0.2);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  font-family: "Manrope", "Segoe UI", Tahoma, sans-serif;
+  color: var(--ink-900);
+  background:
+    radial-gradient(circle at 8% 2%, rgba(47, 127, 191, 0.1), transparent 36%),
+    radial-gradient(circle at 95% 0%, rgba(36, 168, 146, 0.09), transparent 32%),
+    linear-gradient(160deg, #f3f7fc, #eaf0f8 42%, #eef3fa);
+}
+
+:root[data-theme="dark"] body {
+  background:
+    radial-gradient(circle at 8% 2%, rgba(79, 150, 208, 0.16), transparent 36%),
+    radial-gradient(circle at 95% 0%, rgba(42, 185, 161, 0.12), transparent 32%),
+    linear-gradient(160deg, var(--navy-900), var(--navy-950) 50%, #03101c);
+}
+
+h1,
+h2,
+h3,
+h4,
+p {
+  margin: 0;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+.muted {
+  color: var(--slate-500);
+}
+
+.hidden {
+  display: none !important;
+}
+
+.card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-1);
+  padding: 16px;
+}
+
+:root[data-theme="dark"] .card {
+  background: #0a2035;
+}
+
+.btn {
+  border: 0;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  padding: 10px 14px;
+  font-weight: 600;
+}
+
+.btn-primary {
+  color: #fff;
+  background: linear-gradient(120deg, var(--sea-500), var(--mint-500));
+}
+
+.btn-secondary {
+  color: var(--ink-900);
+  background: transparent;
+  border: 1px solid var(--border);
+}
+
+.icon-btn {
+  height: 38px;
+  min-width: 38px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--white);
+  color: var(--ink-900);
+  cursor: pointer;
+}
+
+:root[data-theme="dark"] .icon-btn,
+:root[data-theme="dark"] .btn-secondary {
+  background: #0a2035;
+}
+
+.pill,
+.role-badge {
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  padding: 4px 10px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 10, 18, 0.62);
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  z-index: 1100;
+}
+
+.auth-card {
+  width: min(420px, 100%);
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 22px;
+  display: grid;
+  gap: 10px;
+  box-shadow: var(--shadow-2);
+}
+
+:root[data-theme="dark"] .auth-card {
+  background: #0a2035;
+}
+
+.error-text {
+  min-height: 20px;
+  color: var(--danger);
+  font-size: 0.85rem;
+}
+
+.form-message {
+  display: inline-block;
+  min-height: 20px;
+  color: var(--ink-900);
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.form-message.success {
+  color: var(--success);
+}
+
+.form-message.error {
+  color: var(--danger);
+}
+
+.toast-container {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  display: grid;
+  gap: 8px;
+  z-index: 1200;
+}
+
+.toast {
+  padding: 10px 12px;
+  border-radius: 10px;
+  color: #fff;
+  font-size: 0.87rem;
+  box-shadow: var(--shadow-1);
+  animation: toast-in 180ms ease;
+}
+
+.toast.info {
+  background: var(--sea-500);
+}
+
+.toast.success {
+  background: var(--success);
+}
+
+.toast.error {
+  background: var(--danger);
+}
+
+@keyframes toast-in {
+  from {
+    transform: translateY(8px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
