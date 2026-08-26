@@ -7,7 +7,7 @@ function getKpiData(state) {
 
   const totalItems = spares.length;
   const totalQty = spares.reduce((sum, item) => sum + Number(item.quantityAvailable || 0), 0);
-  const critical = spares.filter((item) => item.criticality === "Critical").length;
+  const critical = spares.filter((item) => (item.natureOfSpares || item.criticality) === "Critical").length;
   const low = spares.filter((item) => Number(item.quantityAvailable || 0) <= Number(item.reorderLevel || 0)).length;
   const out = spares.filter((item) => Number(item.quantityAvailable || 0) <= 0).length;
   const pendingPr = purchaseRequests.filter((item) => ["Submitted", "Under Review", "Approved", "Ordered"].includes(item.status)).length;

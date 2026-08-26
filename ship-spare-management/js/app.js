@@ -162,7 +162,7 @@ function calculateBadges() {
   return {
     lowStockCount,
     outOfStockCount: state.spares.filter((x) => Number(x.quantityAvailable || 0) <= 0).length,
-    criticalCount: state.spares.filter((x) => x.criticality === "Critical").length,
+    criticalCount: state.spares.filter((x) => (x.natureOfSpares || x.criticality) === "Critical").length,
     pendingPrCount: state.purchaseRequests.filter((x) => ["Submitted", "Under Review", "Approved", "Ordered"].includes(x.status)).length,
   };
 }

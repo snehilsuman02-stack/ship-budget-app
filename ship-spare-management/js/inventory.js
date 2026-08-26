@@ -74,7 +74,7 @@ function renderTableRows(rows) {
           <td>${Number(item.quantityAvailable || 0)}</td>
           <td>${Number(item.minimumStockLevel || 0)}</td>
           <td><span class="status ${status.className}">${status.label}</span></td>
-          <td>${item.criticality || "Non-Critical"}</td>
+          <td>${item.natureOfSpares || item.criticality || "Non-Critical"}</td>
           <td>${item.lastIssue || "-"}</td>
           <td>${item.lastReceipt || "-"}</td>
           <td>
@@ -105,7 +105,7 @@ function serializeForm(form) {
     minimumStockLevel: Number(values.minimumStockLevel || 0),
     reorderLevel: Number(values.reorderLevel || 0),
     maximumStockLevel: Number(values.maximumStockLevel || 0),
-    criticality: values.criticality || "Non-Critical",
+    natureOfSpares: values.natureOfSpares || "Non-Critical",
     lastIssue: values.lastIssue || "",
     lastReceipt: values.lastReceipt || "",
   };
@@ -219,14 +219,14 @@ function bindInventoryEvents(container, state) {
         "minimumStockLevel",
         "reorderLevel",
         "maximumStockLevel",
-        "criticality",
+        "natureOfSpares",
         "lastIssue",
         "lastReceipt",
       ];
 
       fields.forEach((field) => {
         const node = form?.querySelector(`[name="${field}"]`);
-        if (node && field in spare) node.value = spare[field] ?? "";
+        if (node) node.value = spare[field] ?? (field === "natureOfSpares" ? spare.criticality || "" : "");
       });
 
       if (formMessage) formMessage.textContent = "Editing existing record.";
@@ -300,11 +300,11 @@ export function renderInventory(container, state) {
           <input id="maximumStockLevel" name="maximumStockLevel" type="number" min="0" step="1" value="0" />
         </div>
         <div>
-          <label for="criticality">Criticality</label>
-          <select id="criticality" name="criticality">
-            <option value="Non-Critical">Non-Critical</option>
+          <label for="natureOfSpares">Nature of Spares</label>
+          <select id="natureOfSpares" name="natureOfSpares">
             <option value="Critical">Critical</option>
-            <option value="Safety Critical">Safety Critical</option>
+            <option value="Non-Critical" selected>Non-Critical</option>
+            <option value="Refit Spares">Refit Spares</option>
           </select>
         </div>
         <div>
@@ -346,7 +346,7 @@ export function renderInventory(container, state) {
               <th>Available Qty</th>
               <th>Minimum Qty</th>
               <th>Status</th>
-              <th>Criticality</th>
+              <th>Nature of Spares</th>
               <th>Last Issue</th>
               <th>Last Receipt</th>
               <th>Actions</th>

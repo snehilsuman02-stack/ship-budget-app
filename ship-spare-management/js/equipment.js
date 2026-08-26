@@ -94,7 +94,7 @@ function renderCriticalEquipmentRows(equipment, spares) {
 	const rows = equipment
 		.map((item) => {
 			const associated = getEquipmentSpares(item, spares);
-			const criticalSpares = associated.filter((spare) => ["Critical", "Safety Critical"].includes(spare.criticality));
+			const criticalSpares = associated.filter((spare) => ["Critical"].includes(spare.natureOfSpares || spare.criticality));
 			return { item, criticalSpares };
 		})
 		.filter(({ item, criticalSpares }) => item.criticality === "Critical" || criticalSpares.length);
