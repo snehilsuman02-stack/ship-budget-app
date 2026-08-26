@@ -179,6 +179,89 @@ function render() {
   renderGlobalSearchResults();
 }
 
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function openSpareDetailsWindow(spare) {
+  const spareName = spare.spareName || spare.name || spare.partNumber || spare.code || "Unnamed Spare";
+  const partNumber = spare.partNumber || spare.code || "-";
+  const quantity = Number(spare.quantityAvailable ?? spare.qty ?? 0);
+  const nature = spare.natureOfSpares || spare.criticality || "Non-Critical";
+  const details = [
+    ["Spare ID", spare.spareId || "-"],
+    ["Part Number", partNumber],
+    ["NSN", spare.nsn || "-"],
+    ["Manufacturer Part Number", spare.manufacturerPartNumber || "-"],
+    ["Manufacturer", spare.manufacturer || "-"],
+    ["Equipment", spare.equipmentName || spare.equipment || "-"],
+    ["Category", spare.category || "-"],
+    ["Nature of Spares", nature],
+    ["Available Quantity", quantity],
+    ["Minimum Stock Level", spare.minimumStockLevel ?? spare.minQty ?? "-"],
+    ["Reorder Level", spare.reorderLevel ?? "-"],
+    ["Maximum Stock Level", spare.maximumStockLevel ?? "-"],
+    ["Location", spare.location || "-"],
+    ["Compartment", spare.compartment || "-"],
+    ["Rack", spare.rack || "-"],
+    ["Shelf", spare.shelf || "-"],
+    ["Bin", spare.bin || "-"],
+    ["Last Issue", spare.lastIssue || "-"],
+    ["Last Receipt", spare.lastReceipt || "-"],
+    ["Description", spare.description || "-"],
+    ["Remarks", spare.remarks || "-"],
+  ];
+
+  const detailsWindow = window.open("", "_blank", "width=920,height=760,resizable=yes,scrollbars=yes");
+  if (!detailsWindow) {
+    showToast("Unable to open spare details. Please allow pop-ups for this site.", "error", 4500);
+    return;
+  }
+
+  detailsWindow.document.write(`
+    <!doctype html>
+    <html lang="en">
+      <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>${escapeHtml(spareName)} | SSMS</title>
+        <style>
+          :root { color-scheme: light; font-family: Manrope, Segoe UI, Arial, sans-serif; color: #10263d; background: #edf3f9; }
+          * { box-sizing: border-box; }
+          body { margin: 0; padding: 28px; }
+          .page { max-width: 880px; margin: 0 auto; background: #fff; border: 1px solid #d5e0ec; border-radius: 16px; box-shadow: 0 16px 36px rgba(4, 18, 32, .14); overflow: hidden; }
+          header { padding: 24px 28px; color: #fff; background: linear-gradient(120deg, #0c2238, #205a82); }
+          header p { margin: 6px 0 0; color: #c8e0f6; font-size: 13px; }
+          h1 { margin: 0; font-size: 25px; }
+          .actions { display: flex; gap: 10px; padding: 18px 28px 0; }
+          button { border: 0; border-radius: 8px; padding: 10px 14px; color: #fff; background: #247bb5; cursor: pointer; font-weight: 700; }
+          button.secondary { color: #18324a; background: #e5edf5; }
+          dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0; margin: 18px 28px 28px; }
+          .field { padding: 14px 12px; border-bottom: 1px solid #e2eaf2; }
+          dt { color: #718196; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+          dd { margin: 5px 0 0; font-size: 15px; font-weight: 700; overflow-wrap: anywhere; }
+          @media (max-width: 620px) { body { padding: 10px; } dl { grid-template-columns: 1fr; margin: 12px 16px 18px; } header { padding: 20px 16px; } .actions { padding: 14px 16px 0; } }
+          @media print { body { padding: 0; background: #fff; } .page { border: 0; box-shadow: none; } .actions { display: none; } }
+        </style>
+      </head>
+      <body>
+        <main class="page">
+          <header><h1>${escapeHtml(spareName)}</h1><p>SSMS Spare Details · ${escapeHtml(partNumber)}</p></header>
+          <div class="actions"><button type="button" onclick="window.print()">Print Details</button><button class="secondary" type="button" onclick="window.close()">Close Window</button></div>
+          <dl>${details.map(([label, value]) => `<div class="field"><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`).join("")}</dl>
+        </main>
+      </body>
+    </html>
+  `);
+  detailsWindow.document.close();
+  detailsWindow.focus();
+}
+
 function renderGlobalSearchResults(query = document.getElementById("global-search")?.value || "") {
   const input = document.getElementById("global-search");
   const resultsHost = document.getElementById("global-search-results");
@@ -237,8 +320,7 @@ function renderGlobalSearchResults(query = document.getElementById("global-searc
       input.value = spare.spareName || spare.name || spare.partNumber || spare.code || "";
       resultsHost.classList.add("hidden");
       input.setAttribute("aria-expanded", "false");
-      window.location.hash = "inventory";
-      showToast(`${spare.spareName || spare.name || spare.partNumber || spare.code} selected.`, "info", 1800);
+      openSpareDetailsWindow(spare);
     });
   });
 }
