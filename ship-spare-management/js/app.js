@@ -6,6 +6,7 @@ import { getHashRoute, debounce } from "./utils.js";
 import { showToast } from "./notifications.js";
 import { renderSidebar, updateStatusBadges, applySidebarState, toggleSidebarCollapsed } from "./ui.js";
 import { renderDashboard } from "./dashboard.js";
+import { renderCriticalSpares } from "./critical-spares.js";
 import { renderInventory } from "./inventory.js";
 import { renderReceiving } from "./receiving.js";
 import { renderIssuing } from "./issuing.js";
@@ -26,7 +27,7 @@ const fallback = createPlaceholderModule("Module", "This module is scaffolded an
 const routeRenderers = {
   dashboard: renderDashboard,
   inventory: renderInventory,
-  "critical-spares": fallback,
+  "critical-spares": renderCriticalSpares,
   "low-stock": fallback,
   "out-of-stock": fallback,
   "expiring-items": fallback,
