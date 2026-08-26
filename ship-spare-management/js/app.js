@@ -10,7 +10,7 @@ import { renderInventory } from "./inventory.js";
 import { renderReceiving } from "./receiving.js";
 import { renderIssuing } from "./issuing.js";
 import { renderLedger } from "./ledger.js";
-import { renderEquipment } from "./equipment.js";
+import { renderEquipment, hydrateEquipment } from "./equipment.js";
 import { renderVendors } from "./vendors.js";
 import { renderProcurement } from "./procurement.js";
 import { renderQr } from "./qr.js";
@@ -143,6 +143,7 @@ const state = {
     },
   ],
   purchaseRequests: [],
+  equipment: [],
 };
 
 const unsubscribers = [];
@@ -150,6 +151,7 @@ const unsubscribers = [];
 function hydrateStateData() {
   const savedSpares = localStorage.getItem("ssms-spares");
   state.spares = savedSpares ? JSON.parse(savedSpares) : [...DEMO_SPARES];
+  hydrateEquipment(state);
 }
 
 function calculateBadges() {
@@ -203,6 +205,15 @@ function attachRealtimeListeners() {
   unsubscribers.push(
     subscribe("purchaseRequests", (value) => {
       state.purchaseRequests = value ? Object.values(value) : [];
+      render();
+    })
+  );
+
+  unsubscribers.push(
+    subscribe("equipment", (value) => {
+      if (!value) return;
+      state.equipment = Object.values(value);
+      localStorage.setItem("ssms-equipment", JSON.stringify(state.equipment));
       render();
     })
   );
