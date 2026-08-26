@@ -194,10 +194,10 @@ function renderGlobalSearchResults(query = document.getElementById("global-searc
 
   const results = state.spares.filter((item) => {
     const searchableText = [
-      item.spareName,
-      item.partNumber,
+      item.spareName || item.name,
+      item.partNumber || item.code,
       item.nsn,
-      item.equipmentName,
+      item.equipmentName || item.equipment,
       item.location,
       item.manufacturer,
       item.natureOfSpares,
@@ -220,8 +220,8 @@ function renderGlobalSearchResults(query = document.getElementById("global-searc
     .map(
       (item) => `
         <button class="global-search-result" type="button" role="option" data-spare-id="${item.spareId || ""}">
-          <strong>${item.spareName || item.partNumber || "Unnamed Spare"}</strong>
-          <small>${item.partNumber || "No part number"} · ${item.equipmentName || "No equipment"} · Qty ${Number(item.quantityAvailable || 0)}</small>
+          <strong>${item.spareName || item.name || item.partNumber || item.code || "Unnamed Spare"}</strong>
+          <small>${item.partNumber || item.code || "No part number"} · ${item.equipmentName || item.equipment || "No equipment"} · Qty ${Number(item.quantityAvailable ?? item.qty ?? 0)}</small>
         </button>
       `
     )
@@ -234,11 +234,11 @@ function renderGlobalSearchResults(query = document.getElementById("global-searc
     result.addEventListener("click", () => {
       const spare = state.spares.find((item) => item.spareId === result.dataset.spareId);
       if (!spare) return;
-      input.value = spare.spareName || spare.partNumber || "";
+      input.value = spare.spareName || spare.name || spare.partNumber || spare.code || "";
       resultsHost.classList.add("hidden");
       input.setAttribute("aria-expanded", "false");
       window.location.hash = "inventory";
-      showToast(`${spare.spareName || spare.partNumber} selected.`, "info", 1800);
+      showToast(`${spare.spareName || spare.name || spare.partNumber || spare.code} selected.`, "info", 1800);
     });
   });
 }
@@ -339,11 +339,22 @@ function bindGlobalEvents() {
     searchInput.addEventListener("input", handleSearch);
     searchInput.setAttribute("aria-expanded", "false");
     searchInput.addEventListener("focus", () => renderGlobalSearchResults(searchInput.value));
+    searchInput.addEventListener("click", () => renderGlobalSearchResults(searchInput.value));
+    searchInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        renderGlobalSearchResults(searchInput.value);
+      }
+    });
     searchInput.addEventListener("keydown", (event) => {
       if (event.key === "Escape") {
         document.getElementById("global-search-results")?.classList.add("hidden");
         searchInput.setAttribute("aria-expanded", "false");
       }
+    });
+    document.getElementById("global-search-button")?.addEventListener("click", () => {
+      renderGlobalSearchResults(searchInput.value);
+      searchInput.focus();
     });
     document.addEventListener("click", (event) => {
       if (!event.target.closest(".global-search-wrap")) {

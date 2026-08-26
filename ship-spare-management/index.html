@@ -40,7 +40,10 @@
           <div class="topbar-right">
             <div class="global-search-wrap">
               <label class="sr-only" for="global-search">Global Search</label>
-              <input id="global-search" type="search" placeholder="Search spares, parts, vendors, transactions..." />
+              <div class="global-search-control">
+                <input id="global-search" type="search" placeholder="Search spares, parts, vendors, transactions..." autocomplete="off" aria-controls="global-search-results" />
+                <button id="global-search-button" class="icon-btn" type="button" aria-label="Search spares">⌕</button>
+              </div>
               <div id="global-search-results" class="global-search-results hidden" role="listbox" aria-label="Spare search results"></div>
             </div>
             <span id="user-role-badge" class="role-badge">VIEWER</span>

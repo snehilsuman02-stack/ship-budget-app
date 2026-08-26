@@ -128,6 +128,20 @@
   width: min(420px, 42vw);
 }
 
+.global-search-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.global-search-control input {
+  min-width: 0;
+}
+
+.global-search-control .icon-btn {
+  flex: 0 0 38px;
+}
+
 .global-search-results {
   position: absolute;
   top: calc(100% + 8px);
@@ -211,7 +225,7 @@
   }
 
   .global-search-wrap {
-    display: none;
+    width: min(100%, 360px);
   }
 }
 
@@ -227,5 +241,18 @@
 
   .topbar-right {
     gap: 6px;
+  }
+
+  .global-search-wrap {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 10px;
+    right: 10px;
+    width: auto;
+    z-index: 20;
+  }
+
+  .topbar {
+    margin-bottom: 52px;
   }
 }
