@@ -125,6 +125,12 @@ textarea {
   border: 1px solid var(--border);
 }
 
+.btn-danger {
+  margin-left: 6px;
+  color: #fff;
+  background: var(--danger);
+}
+
 .icon-btn {
   height: 38px;
   min-width: 38px;

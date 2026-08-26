@@ -79,6 +79,7 @@ function renderTableRows(rows) {
           <td>${item.lastReceipt || "-"}</td>
           <td>
             <button class="btn btn-secondary" data-action="edit-spare" data-id="${item.spareId}">Edit</button>
+            <button class="btn btn-danger" data-action="delete-spare" data-id="${item.spareId}">Delete</button>
           </td>
         </tr>
       `;
@@ -116,11 +117,31 @@ function bindInventoryEvents(container, state) {
   const form = container.querySelector("#inventory-form");
   const resetBtn = container.querySelector("#inventory-reset-btn");
   const formMessage = container.querySelector("#inventory-form-message");
+  const tableBody = container.querySelector("#inventory-table-body");
+
+  tableBody?.addEventListener("click", (event) => {
+    const deleteButton = event.target.closest("[data-action='delete-spare']");
+    if (!deleteButton) return;
+
+    const spare = state.spares.find((item) => item.spareId === deleteButton.dataset.id);
+    if (!spare) return;
+
+    const spareName = spare.spareName || spare.partNumber || spare.spareId;
+    if (!window.confirm(`Delete ${spareName} from inventory? This action cannot be undone.`)) return;
+
+    const nextSpares = state.spares.filter((item) => item.spareId !== spare.spareId);
+    saveSparesToStorage(state, nextSpares);
+    tableBody.innerHTML = renderTableRows(nextSpares);
+    if (formMessage) {
+      formMessage.textContent = "Spare record deleted.";
+      formMessage.className = "form-message success";
+    }
+    showToast("Inventory item deleted.", "success");
+  });
 
   if (searchInput) {
     searchInput.addEventListener("input", (event) => {
       const query = String(event.target.value || "").trim().toLowerCase();
-      const tableBody = container.querySelector("#inventory-table-body");
       if (!tableBody) return;
 
       const rows = !query
