@@ -176,6 +176,71 @@ function render() {
 
   const renderer = routeRenderers[state.route] || fallback;
   renderer(container, state);
+  renderGlobalSearchResults();
+}
+
+function renderGlobalSearchResults(query = document.getElementById("global-search")?.value || "") {
+  const input = document.getElementById("global-search");
+  const resultsHost = document.getElementById("global-search-results");
+  if (!input || !resultsHost) return;
+
+  const normalizedQuery = String(query).trim().toLowerCase();
+  if (normalizedQuery.length < 2) {
+    resultsHost.innerHTML = "";
+    resultsHost.classList.add("hidden");
+    input.setAttribute("aria-expanded", "false");
+    return;
+  }
+
+  const results = state.spares.filter((item) => {
+    const searchableText = [
+      item.spareName,
+      item.partNumber,
+      item.nsn,
+      item.equipmentName,
+      item.location,
+      item.manufacturer,
+      item.natureOfSpares,
+      item.criticality,
+    ]
+      .join(" ")
+      .toLowerCase();
+    return searchableText.includes(normalizedQuery);
+  });
+
+  if (!results.length) {
+    resultsHost.innerHTML = '<div class="global-search-empty">No matching spares found.</div>';
+    resultsHost.classList.remove("hidden");
+    input.setAttribute("aria-expanded", "true");
+    return;
+  }
+
+  resultsHost.innerHTML = results
+    .slice(0, 12)
+    .map(
+      (item) => `
+        <button class="global-search-result" type="button" role="option" data-spare-id="${item.spareId || ""}">
+          <strong>${item.spareName || item.partNumber || "Unnamed Spare"}</strong>
+          <small>${item.partNumber || "No part number"} · ${item.equipmentName || "No equipment"} · Qty ${Number(item.quantityAvailable || 0)}</small>
+        </button>
+      `
+    )
+    .join("");
+
+  resultsHost.classList.remove("hidden");
+  input.setAttribute("aria-expanded", "true");
+
+  resultsHost.querySelectorAll("[data-spare-id]").forEach((result) => {
+    result.addEventListener("click", () => {
+      const spare = state.spares.find((item) => item.spareId === result.dataset.spareId);
+      if (!spare) return;
+      input.value = spare.spareName || spare.partNumber || "";
+      resultsHost.classList.add("hidden");
+      input.setAttribute("aria-expanded", "false");
+      window.location.hash = "inventory";
+      showToast(`${spare.spareName || spare.partNumber} selected.`, "info", 1800);
+    });
+  });
 }
 
 function clearSubscriptions() {
@@ -269,11 +334,23 @@ function bindGlobalEvents() {
   const searchInput = document.getElementById("global-search");
   if (searchInput) {
     const handleSearch = debounce((event) => {
-      const query = String(event.target.value || "").trim();
-      if (query.length < 2) return;
-      showToast(`Global search scaffold: \"${query}\"`, "info", 1800);
+      renderGlobalSearchResults(event.target.value);
     }, 250);
     searchInput.addEventListener("input", handleSearch);
+    searchInput.setAttribute("aria-expanded", "false");
+    searchInput.addEventListener("focus", () => renderGlobalSearchResults(searchInput.value));
+    searchInput.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        document.getElementById("global-search-results")?.classList.add("hidden");
+        searchInput.setAttribute("aria-expanded", "false");
+      }
+    });
+    document.addEventListener("click", (event) => {
+      if (!event.target.closest(".global-search-wrap")) {
+        document.getElementById("global-search-results")?.classList.add("hidden");
+        searchInput.setAttribute("aria-expanded", "false");
+      }
+    });
   }
 
   document.getElementById("login-form")?.addEventListener("submit", async (event) => {
