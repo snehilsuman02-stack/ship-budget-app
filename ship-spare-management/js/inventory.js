@@ -57,7 +57,7 @@ function ensureUniquePartNumber(state, item, currentId) {
 
 function renderTableRows(rows) {
   if (!rows.length) {
-    return `<tr><td colspan="13">No inventory records found for the current filter.</td></tr>`;
+    return `<tr><td colspan="14">No inventory records found for the current filter.</td></tr>`;
   }
 
   return rows
@@ -75,6 +75,7 @@ function renderTableRows(rows) {
           <td>${Number(item.minimumStockLevel || 0)}</td>
           <td><span class="status ${status.className}">${status.label}</span></td>
           <td>${item.natureOfSpares || item.criticality || "Non-Critical"}</td>
+          <td>${item.typeOfSpares || "Consumable"}</td>
           <td>${item.lastIssue || "-"}</td>
           <td>${item.lastReceipt || "-"}</td>
           <td>
@@ -107,6 +108,7 @@ function serializeForm(form) {
     reorderLevel: Number(values.reorderLevel || 0),
     maximumStockLevel: Number(values.maximumStockLevel || 0),
     natureOfSpares: values.natureOfSpares || "Non-Critical",
+    typeOfSpares: values.typeOfSpares || "Consumable",
     lastIssue: values.lastIssue || "",
     lastReceipt: values.lastReceipt || "",
   };
@@ -241,13 +243,14 @@ function bindInventoryEvents(container, state) {
         "reorderLevel",
         "maximumStockLevel",
         "natureOfSpares",
+        "typeOfSpares",
         "lastIssue",
         "lastReceipt",
       ];
 
       fields.forEach((field) => {
         const node = form?.querySelector(`[name="${field}"]`);
-        if (node) node.value = spare[field] ?? (field === "natureOfSpares" ? spare.criticality || "" : "");
+        if (node) node.value = spare[field] ?? (field === "natureOfSpares" ? spare.criticality || "" : field === "typeOfSpares" ? "Consumable" : "");
       });
 
       if (formMessage) formMessage.textContent = "Editing existing record.";
@@ -329,6 +332,14 @@ export function renderInventory(container, state) {
           </select>
         </div>
         <div>
+          <label for="typeOfSpares">Type of Spares</label>
+          <select id="typeOfSpares" name="typeOfSpares">
+            <option value="Permanent">Permanent</option>
+            <option value="Consumable" selected>Consumable</option>
+            <option value="Quasi Permanent">Quasi Permanent</option>
+          </select>
+        </div>
+        <div>
           <label for="lastIssue">Last Issue</label>
           <input id="lastIssue" name="lastIssue" type="date" />
         </div>
@@ -368,6 +379,7 @@ export function renderInventory(container, state) {
               <th>Minimum Qty</th>
               <th>Status</th>
               <th>Nature of Spares</th>
+              <th>Type of Spares</th>
               <th>Last Issue</th>
               <th>Last Receipt</th>
               <th>Actions</th>
