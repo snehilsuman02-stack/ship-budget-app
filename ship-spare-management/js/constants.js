@@ -101,7 +101,7 @@ export const NAV_STRUCTURE = [
 export const DEFAULT_SETTINGS = {
   shipName: APP_BRAND.title,
   subtitle: APP_BRAND.subtitle,
-  currency: "USD",
+  currency: "INR",
   dateFormat: "DD-MMM-YYYY",
   stockAlertThreshold: 0,
   expiryAlertDays: 90,

@@ -64,7 +64,7 @@ export function renderDashboard(container, state) {
       <article class="card kpi-card"><h3>Low Stock Items</h3><p class="kpi-value">${formatNumber(kpi.low)}</p><p class="kpi-meta">At or below reorder level</p></article>
       <article class="card kpi-card"><h3>Out of Stock</h3><p class="kpi-value">${formatNumber(kpi.out)}</p><p class="kpi-meta">Immediate action required</p></article>
       <article class="card kpi-card"><h3>Pending PRs</h3><p class="kpi-value">${formatNumber(kpi.pendingPr)}</p><p class="kpi-meta">Awaiting procurement action</p></article>
-      <article class="card kpi-card"><h3>Stock Value</h3><p class="kpi-value">${formatCurrency(kpi.stockValue, state.settings?.currency || "USD")}</p><p class="kpi-meta">Quantity x unit cost</p></article>
+      <article class="card kpi-card"><h3>Stock Value</h3><p class="kpi-value">${formatCurrency(kpi.stockValue, state.settings?.currency || "INR")}</p><p class="kpi-meta">Quantity x unit cost</p></article>
       <article class="card kpi-card"><h3>Issued This Month</h3><p class="kpi-value">${formatNumber(kpi.issuedThisMonth)}</p><p class="kpi-meta">Current month issues</p></article>
     </section>
 

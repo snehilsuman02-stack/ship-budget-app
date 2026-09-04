@@ -9,7 +9,7 @@ export function renderSettings(container, state) {
         <label>Application Code<input value="${APP_BRAND.code}" disabled /></label>
         <label>Application Title<input value="${state.settings?.shipName || APP_BRAND.title}" disabled /></label>
         <label>Subtitle<input value="${state.settings?.subtitle || APP_BRAND.subtitle}" disabled /></label>
-        <label>Currency<input value="${state.settings?.currency || "USD"}" disabled /></label>
+        <label>Currency<input value="${state.settings?.currency || "INR"}" disabled /></label>
       </div>
     </section>
   `;

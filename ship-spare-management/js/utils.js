@@ -2,7 +2,7 @@ export function formatNumber(value) {
   return new Intl.NumberFormat("en-US").format(Number(value) || 0);
 }
 
-export function formatCurrency(value, currency = "USD") {
+export function formatCurrency(value, currency = "INR") {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency,
