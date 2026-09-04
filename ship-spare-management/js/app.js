@@ -1,7 +1,7 @@
 import { initializeFirebase, getFirebaseContext } from "./firebase.js";
 import { watchAuthState, signInWithEmail, signOutUser } from "./auth.js";
 import { subscribe } from "./database.js";
-import { APP_BRAND, DEFAULT_SETTINGS, THEME_STORAGE_KEY } from "./constants.js";
+import { APP_BRAND, DEFAULT_SETTINGS, SETTINGS_STORAGE_KEY, THEME_STORAGE_KEY } from "./constants.js";
 import { getHashRoute, debounce } from "./utils.js";
 import { showToast } from "./notifications.js";
 import { renderSidebar, updateStatusBadges, applySidebarState, toggleSidebarCollapsed } from "./ui.js";
@@ -57,7 +57,7 @@ const routeRenderers = {
   "audit-report": fallback,
   users: renderUsers,
   "audit-log": renderAudit,
-  settings: renderSettings,
+  settings: (container, currentState) => renderSettings(container, currentState, saveSettings),
   help: fallback,
 };
 
@@ -151,6 +151,15 @@ const state = {
 const unsubscribers = [];
 
 function hydrateStateData() {
+  const savedSettings = localStorage.getItem(SETTINGS_STORAGE_KEY);
+  if (savedSettings) {
+    try {
+      state.settings = { ...DEFAULT_SETTINGS, ...JSON.parse(savedSettings), currency: "INR" };
+    } catch (error) {
+      console.warn("Saved settings could not be loaded.", error);
+    }
+  }
+
   const savedSpares = localStorage.getItem("ssms-spares");
   state.spares = savedSpares ? JSON.parse(savedSpares) : [...DEMO_SPARES];
   hydrateEquipment(state);
@@ -167,6 +176,16 @@ function calculateBadges() {
     criticalCount: state.spares.filter((x) => (x.natureOfSpares || x.criticality) === "Critical").length,
     pendingPrCount: state.purchaseRequests.filter((x) => ["Submitted", "Under Review", "Approved", "Ordered"].includes(x.status)).length,
   };
+}
+
+function saveSettings(nextSettings) {
+  state.settings = nextSettings ? { ...DEFAULT_SETTINGS, ...nextSettings, currency: "INR" } : { ...DEFAULT_SETTINGS };
+  localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(state.settings));
+  localStorage.setItem(THEME_STORAGE_KEY, state.settings.theme);
+  applyTheme();
+  initBranding();
+  render();
+  showToast(nextSettings ? "Settings saved." : "Settings reset to defaults.", "success");
 }
 
 function render() {
@@ -467,6 +486,7 @@ function bindGlobalEvents() {
 async function initBranding() {
   document.getElementById("brand-title").textContent = state.settings.shipName || APP_BRAND.title;
   document.getElementById("brand-subtitle").textContent = state.settings.subtitle || APP_BRAND.subtitle;
+  document.title = state.settings.shipName || APP_BRAND.title;
 }
 
 async function init() {

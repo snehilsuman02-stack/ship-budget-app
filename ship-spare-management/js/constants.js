@@ -15,6 +15,7 @@ export const ROLES = {
 
 export const THEME_STORAGE_KEY = "ssms-theme";
 export const SIDEBAR_STATE_KEY = "ssms-sidebar-collapsed";
+export const SETTINGS_STORAGE_KEY = "ssms-settings";
 
 export const NAV_STRUCTURE = [
   {
