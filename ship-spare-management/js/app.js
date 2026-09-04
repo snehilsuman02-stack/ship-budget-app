@@ -22,6 +22,7 @@ import { renderAudit } from "./audit.js";
 import { renderUsers } from "./users.js";
 import { renderSettings } from "./settings.js";
 import { createPlaceholderModule } from "./module-template.js";
+import { isSqliteAvailable, readSqlite, writeSqlite } from "./sqlite.js";
 
 const fallback = createPlaceholderModule("Module", "This module is scaffolded and will be implemented in upcoming phases.");
 
@@ -150,7 +151,7 @@ const state = {
 
 const unsubscribers = [];
 
-function hydrateStateData() {
+async function hydrateStateData() {
   const savedSettings = localStorage.getItem(SETTINGS_STORAGE_KEY);
   if (savedSettings) {
     try {
@@ -161,7 +162,13 @@ function hydrateStateData() {
   }
 
   const savedSpares = localStorage.getItem("ssms-spares");
-  state.spares = savedSpares ? JSON.parse(savedSpares) : [...DEMO_SPARES];
+  const sqliteSpares = await readSqlite("spares");
+  state.spares = sqliteSpares ? Object.values(sqliteSpares) : savedSpares ? JSON.parse(savedSpares) : [...DEMO_SPARES];
+  if (isSqliteAvailable() && !sqliteSpares) await writeSqlite("spares", state.spares.reduce((map, item) => ({ ...map, [item.spareId]: item }), {}));
+
+  const sqliteTransactions = await readSqlite("transactions");
+  if (sqliteTransactions) state.transactions = Object.values(sqliteTransactions);
+  else if (isSqliteAvailable()) await writeSqlite("transactions", state.transactions.reduce((map, item, index) => ({ ...map, [item.transactionId || `seed-${index}`]: item }), {}));
   hydrateEquipment(state);
 }
 
@@ -490,7 +497,7 @@ async function initBranding() {
 }
 
 async function init() {
-  hydrateStateData();
+  await hydrateStateData();
   applyTheme();
   applySidebarState();
   await initBranding();

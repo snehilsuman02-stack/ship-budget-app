@@ -1,8 +1,13 @@
 import { getFirebaseContext } from "./firebase.js";
+import { readSqlite, writeSqlite } from "./sqlite.js";
 
 export async function getValue(path) {
   const { db, sdk } = getFirebaseContext();
-  if (!db || !sdk?.ref || !sdk?.get) return null;
+  if (!db || !sdk?.ref || !sdk?.get) {
+    const [table, id] = String(path).split("/");
+    const value = await readSqlite(table);
+    return id && value ? value[id] ?? null : value;
+  }
 
   const snapshot = await sdk.get(sdk.ref(db, path));
   return snapshot.val();
@@ -11,7 +16,7 @@ export async function getValue(path) {
 export function subscribe(path, callback) {
   const { db, sdk } = getFirebaseContext();
   if (!db || !sdk?.ref || !sdk?.onValue) {
-    callback?.(null);
+    getValue(path).then((value) => callback?.(value)).catch(() => callback?.(null));
     return () => {};
   }
 
@@ -22,7 +27,14 @@ export function subscribe(path, callback) {
 export async function setValue(path, value) {
   const { db, sdk } = getFirebaseContext();
   if (!db || !sdk?.ref || !sdk?.set) {
-    throw new Error("Database is not ready.");
+    const [table, id] = String(path).split("/");
+    if (id) {
+      const current = (await readSqlite(table)) || {};
+      await writeSqlite(table, { ...current, [id]: value });
+    } else {
+      await writeSqlite(table, value);
+    }
+    return;
   }
 
   await sdk.set(sdk.ref(db, path), value);
@@ -31,7 +43,14 @@ export async function setValue(path, value) {
 export async function patchValue(path, value) {
   const { db, sdk } = getFirebaseContext();
   if (!db || !sdk?.ref || !sdk?.update) {
-    throw new Error("Database is not ready.");
+    const [table, id] = String(path).split("/");
+    const current = (await readSqlite(table)) || {};
+    if (id) {
+      await writeSqlite(table, { ...current, [id]: { ...(current[id] || {}), ...value } });
+    } else {
+      await writeSqlite(table, { ...current, ...value });
+    }
+    return;
   }
 
   await sdk.update(sdk.ref(db, path), value);

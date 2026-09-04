@@ -2,6 +2,7 @@ import { getFirebaseContext } from "./firebase.js";
 import { setValue } from "./database.js";
 import { showToast } from "./notifications.js";
 import { createId } from "./utils.js";
+import { writeSqlite } from "./sqlite.js";
 
 const STORAGE_KEY = "ssms-spares";
 
@@ -14,6 +15,7 @@ function getStatus(quantity, minimum, reorder) {
 function saveSparesToStorage(state, spares) {
   state.spares = spares;
   localStorage.setItem(STORAGE_KEY, JSON.stringify(spares));
+  writeSqlite("spares", spares.reduce((acc, item) => ({ ...acc, [item.spareId]: item }), {})).catch((error) => console.error("SQLite inventory save failed", error));
 
   const { db, sdk } = getFirebaseContext();
   if (db && sdk?.ref && sdk?.set) {

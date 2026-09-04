@@ -12,5 +12,8 @@
     "@electron-forge/cli": "^7.11.2",
     "@electron-forge/maker-squirrel": "^7.11.2",
     "electron": "^44.2.0"
+  },
+  "dependencies": {
+    "sql.js": "^1.13.0"
   }
 }

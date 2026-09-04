@@ -1,6 +1,7 @@
 import { showToast } from "./notifications.js";
 import { createId } from "./utils.js";
 import { setValue } from "./database.js";
+import { writeSqlite } from "./sqlite.js";
 
 const STORAGE_KEY = "ssms-receipts";
 
@@ -10,6 +11,7 @@ function getReceiptStorage() {
 
 function saveReceiptStorage(items) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+  writeSqlite("receipts", items).catch((error) => console.error("SQLite receipt save failed", error));
 }
 
 function renderReceiptRows(rows) {
@@ -151,6 +153,7 @@ export function renderReceiving(container, state) {
     };
     ledger.push(ledgerEntry);
     localStorage.setItem("ssms-ledger", JSON.stringify(ledger));
+    writeSqlite("ledger", ledger).catch((error) => console.error("SQLite ledger save failed", error));
 
     localStorage.setItem("ssms-spares", JSON.stringify(nextSpares));
     state.spares = nextSpares;
