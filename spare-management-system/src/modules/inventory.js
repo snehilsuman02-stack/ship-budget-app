@@ -37,8 +37,8 @@ export function renderInventory(container, state, ctx) {
         </select>
         <button id="inv-export-excel" type="button">Export Excel</button>
         <button id="inv-export-pdf" type="button">Export PDF</button>
-        <label class="icon-btn" for="inv-import-file">Import Excel</label>
-        <input id="inv-import-file" type="file" accept=".xlsx,.xls" class="hidden" />
+        <button id="inv-import-button" type="button">Bulk Import CSV/Excel</button>
+        <input id="inv-import-file" type="file" accept=".csv,.xlsx,.xls,text/csv" class="hidden" />
       </div>
 
       <form id="spare-form" class="toolbar">
@@ -182,6 +182,10 @@ export function renderInventory(container, state, ctx) {
     }
   });
 
+  container.querySelector("#inv-import-button").addEventListener("click", () => {
+    container.querySelector("#inv-import-file").click();
+  });
+
   container.querySelector("#inv-import-file").addEventListener("change", async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -189,11 +193,11 @@ export function renderInventory(container, state, ctx) {
       const data = await importFromExcel(file);
       for (const row of data) {
         await saveSpare({
-          code: row.code || row.Code,
-          name: row.name || row.Name,
+          code: row.code || row.Code || row["Spare ID"] || row.spareId || row["Part Number"] || row.partNumber,
+          name: row.name || row.Name || row["Spare Name"] || row.spareName,
           category: row.category || row.Category,
-          qty: row.qty || row.Qty || 0,
-          minQty: row.minQty || row["Min Qty"] || 0,
+          qty: row.qty || row.Qty || row["Quantity Available"] || row.quantityAvailable || 0,
+          minQty: row.minQty || row["Min Qty"] || row["Minimum Stock Level"] || row.minimumStockLevel || 0,
           location: row.location || row.Location || "",
         });
       }
