@@ -1,5 +1,6 @@
 import { showToast } from "./notifications.js";
 import { createId } from "./utils.js";
+import { setValue } from "./database.js";
 
 const STORAGE_KEY = "ssms-receipts";
 
@@ -94,7 +95,7 @@ export function renderReceiving(container, state) {
   const form = container.querySelector("#receive-form");
   const message = container.querySelector("#receive-message");
 
-  form?.addEventListener("submit", (event) => {
+  form?.addEventListener("submit", async (event) => {
     event.preventDefault();
     const formData = Object.fromEntries(new FormData(form).entries());
     const quantity = Number(formData.quantity || 0);
@@ -132,7 +133,7 @@ export function renderReceiving(container, state) {
     saveReceiptStorage(receiptList);
 
     const ledger = JSON.parse(localStorage.getItem("ssms-ledger") || "[]");
-    ledger.push({
+    const ledgerEntry = {
       date: formData.date || new Date().toISOString().slice(0, 10),
       transactionId: createId("TXN"),
       spareId: match.spareId || "-",
@@ -147,11 +148,22 @@ export function renderReceiving(container, state) {
       user: "System",
       remarks: formData.remarks || "Stock received",
       timestamp: Date.now(),
-    });
+    };
+    ledger.push(ledgerEntry);
     localStorage.setItem("ssms-ledger", JSON.stringify(ledger));
 
     localStorage.setItem("ssms-spares", JSON.stringify(nextSpares));
     state.spares = nextSpares;
+
+    try {
+      await Promise.all([
+        setValue(`spares/${match.spareId}`, match),
+        setValue(`transactions/${ledgerEntry.transactionId}`, ledgerEntry),
+      ]);
+    } catch (error) {
+      console.error("Receipt sync failed", error);
+      showToast("Receipt saved locally, but cloud sync failed.", "error", 5000);
+    }
 
     form.reset();
     message.textContent = "Receipt posted successfully.";

@@ -1,5 +1,6 @@
 import { showToast } from "./notifications.js";
 import { createId } from "./utils.js";
+import { setValue } from "./database.js";
 
 const STORAGE_KEY = "ssms-issues";
 
@@ -86,7 +87,7 @@ export function renderIssuing(container, state) {
   const form = container.querySelector("#issue-form");
   const message = container.querySelector("#issue-message");
 
-  form?.addEventListener("submit", (event) => {
+  form?.addEventListener("submit", async (event) => {
     event.preventDefault();
     const formData = Object.fromEntries(new FormData(form).entries());
     const quantity = Number(formData.quantity || 0);
@@ -119,7 +120,7 @@ export function renderIssuing(container, state) {
     saveIssueStorage(issueList);
 
     const ledger = JSON.parse(localStorage.getItem("ssms-ledger") || "[]");
-    ledger.push({
+    const ledgerEntry = {
       date: formData.date || new Date().toISOString().slice(0, 10),
       transactionId: createId("TXN"),
       spareId: match.spareId || "-",
@@ -134,9 +135,20 @@ export function renderIssuing(container, state) {
       user: "System",
       remarks: formData.remarks || "Stock issued",
       timestamp: Date.now(),
-    });
+    };
+    ledger.push(ledgerEntry);
     localStorage.setItem("ssms-ledger", JSON.stringify(ledger));
     localStorage.setItem("ssms-spares", JSON.stringify(state.spares));
+
+    try {
+      await Promise.all([
+        setValue(`spares/${match.spareId}`, match),
+        setValue(`transactions/${ledgerEntry.transactionId}`, ledgerEntry),
+      ]);
+    } catch (error) {
+      console.error("Issue sync failed", error);
+      showToast("Issue saved locally, but cloud sync failed.", "error", 5000);
+    }
 
     form.reset();
     message.textContent = "Spare issue posted successfully.";
