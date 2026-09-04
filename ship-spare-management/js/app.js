@@ -1,6 +1,3 @@
-import { initializeFirebase, getFirebaseContext } from "./firebase.js";
-import { watchAuthState, signInWithEmail, signOutUser } from "./auth.js";
-import { subscribe } from "./database.js";
 import { APP_BRAND, DEFAULT_SETTINGS, SETTINGS_STORAGE_KEY, THEME_STORAGE_KEY } from "./constants.js";
 import { getHashRoute, debounce } from "./utils.js";
 import { showToast } from "./notifications.js";
@@ -353,47 +350,6 @@ function renderGlobalSearchResults(query = document.getElementById("global-searc
   });
 }
 
-function clearSubscriptions() {
-  while (unsubscribers.length) {
-    const stop = unsubscribers.pop();
-    if (typeof stop === "function") stop();
-  }
-}
-
-function attachRealtimeListeners() {
-  clearSubscriptions();
-
-  unsubscribers.push(
-    subscribe("spares", (value) => {
-      state.spares = value ? Object.values(value) : [];
-      render();
-    })
-  );
-
-  unsubscribers.push(
-    subscribe("transactions", (value) => {
-      state.transactions = value ? Object.values(value) : [];
-      render();
-    })
-  );
-
-  unsubscribers.push(
-    subscribe("purchaseRequests", (value) => {
-      state.purchaseRequests = value ? Object.values(value) : [];
-      render();
-    })
-  );
-
-  unsubscribers.push(
-    subscribe("equipment", (value) => {
-      if (!value) return;
-      state.equipment = Object.values(value);
-      localStorage.setItem("ssms-equipment", JSON.stringify(state.equipment));
-      render();
-    })
-  );
-}
-
 function applyTheme() {
   const savedTheme = localStorage.getItem(THEME_STORAGE_KEY);
   document.documentElement.dataset.theme = savedTheme || state.settings.theme || "light";
@@ -432,15 +388,6 @@ function bindGlobalEvents() {
     localStorage.setItem(THEME_STORAGE_KEY, next);
   });
 
-  document.getElementById("logout-btn")?.addEventListener("click", async () => {
-    try {
-      await signOutUser();
-      showToast("Signed out", "info");
-    } catch (error) {
-      showToast(error.message || "Sign out failed", "error");
-    }
-  });
-
   const searchInput = document.getElementById("global-search");
   if (searchInput) {
     const handleSearch = debounce((event) => {
@@ -474,20 +421,6 @@ function bindGlobalEvents() {
     });
   }
 
-  document.getElementById("login-form")?.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const email = document.getElementById("login-email")?.value || "";
-    const password = document.getElementById("login-password")?.value || "";
-    const errorNode = document.getElementById("login-error");
-
-    try {
-      if (errorNode) errorNode.textContent = "";
-      await signInWithEmail(email, password);
-      showToast("Authenticated successfully.", "success");
-    } catch (error) {
-      if (errorNode) errorNode.textContent = error.message || "Unable to sign in.";
-    }
-  });
 }
 
 async function initBranding() {
@@ -503,36 +436,7 @@ async function init() {
   await initBranding();
   bindGlobalEvents();
 
-  const context = await initializeFirebase();
-  const loginOverlay = document.getElementById("login-overlay");
-
-  if (!context.configured) {
-    if (loginOverlay) loginOverlay.classList.add("hidden");
-    state.syncState = "OFFLINE";
-    showToast("Firebase config placeholders detected. Running in skeleton mode.", "info", 4500);
-    render();
-    return;
-  }
-
-  watchAuthState(
-    (user) => {
-      state.user = user;
-      state.role = "viewer";
-      state.syncState = "SYNC COMPLETE";
-      loginOverlay?.classList.add("hidden");
-      attachRealtimeListeners();
-      render();
-    },
-    () => {
-      state.user = null;
-      state.role = "viewer";
-      state.syncState = "IDLE";
-      clearSubscriptions();
-      loginOverlay?.classList.remove("hidden");
-      render();
-    }
-  );
-
+  state.syncState = isSqliteAvailable() ? "LOCAL SQLITE" : "LOCAL STORAGE";
   render();
 }
 

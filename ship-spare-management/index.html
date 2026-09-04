@@ -48,29 +48,11 @@
             </div>
             <span id="user-role-badge" class="role-badge">VIEWER</span>
             <button id="theme-toggle" class="icon-btn" type="button" aria-label="Toggle theme">◐</button>
-            <button id="logout-btn" class="btn btn-secondary" type="button">Logout</button>
           </div>
         </header>
 
         <main id="app-content" class="content" tabindex="-1" aria-live="polite"></main>
       </div>
-    </div>
-
-    <div id="login-overlay" class="overlay" role="dialog" aria-modal="true" aria-labelledby="login-title">
-      <form id="login-form" class="auth-card">
-        <h2 id="login-title">Sign In to SSMS</h2>
-        <p class="muted">Use Firebase Authentication credentials.</p>
-
-        <label for="login-email">Email</label>
-        <input id="login-email" type="email" autocomplete="username" required />
-
-        <label for="login-password">Password</label>
-        <input id="login-password" type="password" autocomplete="current-password" required />
-
-        <p id="login-error" class="error-text" role="alert"></p>
-
-        <button class="btn btn-primary" type="submit">Sign In</button>
-      </form>
     </div>
 
     <div id="toast-container" class="toast-container" aria-live="polite" aria-atomic="true"></div>

@@ -1,6 +1,6 @@
 import { showToast } from "./notifications.js";
 import { createId } from "./utils.js";
-import { getFirebaseContext } from "./firebase.js";
+import { writeSqlite } from "./sqlite.js";
 
 const STORAGE_KEY = "ssms-equipment";
 
@@ -25,16 +25,11 @@ function saveEquipmentStorage(state, equipment) {
 	state.equipment = equipment;
 	localStorage.setItem(STORAGE_KEY, JSON.stringify(equipment));
 
-	const { db, sdk } = getFirebaseContext();
-	if (!db || !sdk?.ref || !sdk?.set) return;
-
 	const equipmentMap = equipment.reduce((result, item) => {
 		result[item.equipmentId] = item;
 		return result;
 	}, {});
-	sdk.set(sdk.ref(db, "equipment"), equipmentMap).catch((error) => {
-		console.error("Equipment sync failed", error);
-	});
+	writeSqlite("equipment", equipmentMap).catch((error) => console.error("SQLite equipment save failed", error));
 }
 
 function getStatusClass(status) {

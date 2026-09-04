@@ -1,4 +1,3 @@
-import { getFirebaseContext } from "./firebase.js";
 import { setValue } from "./database.js";
 import { showToast } from "./notifications.js";
 import { createId } from "./utils.js";
@@ -17,17 +16,6 @@ function saveSparesToStorage(state, spares) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(spares));
   writeSqlite("spares", spares.reduce((acc, item) => ({ ...acc, [item.spareId]: item }), {})).catch((error) => console.error("SQLite inventory save failed", error));
 
-  const { db, sdk } = getFirebaseContext();
-  if (db && sdk?.ref && sdk?.set) {
-    const target = sdk.ref(db, "spares");
-    const objectMap = spares.reduce((acc, item) => {
-      acc[item.spareId] = item;
-      return acc;
-    }, {});
-    sdk
-      .set(target, objectMap)
-      .catch((error) => console.error("Inventory sync failed", error));
-  }
 }
 
 function validateSpare(item) {
