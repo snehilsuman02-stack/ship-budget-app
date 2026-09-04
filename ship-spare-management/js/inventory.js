@@ -179,11 +179,14 @@ function bindInventoryEvents(container, state) {
   const pageLabel = container.querySelector("#inventory-page-label");
   const resultCount = container.querySelector("#inventory-result-count");
   const importInput = container.querySelector("#inventory-import-input");
+  const importButton = container.querySelector("#inventory-import-button");
   const form = container.querySelector("#inventory-form");
   const resetBtn = container.querySelector("#inventory-reset-btn");
   const formMessage = container.querySelector("#inventory-form-message");
   const tableBody = container.querySelector("#inventory-table-body");
   let currentPage = 1;
+
+  importButton?.addEventListener("click", () => importInput?.click());
 
   function renderPage() {
     const query = String(searchInput?.value || "").trim().toLowerCase();
@@ -342,7 +345,8 @@ export function renderInventory(container, state) {
         <h2>Inventory Management</h2>
         <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
           <button type="button" class="btn btn-primary" id="inventory-add-btn">Add New Spare</button>
-          <label class="btn btn-secondary" for="inventory-import-input">Import CSV<input id="inventory-import-input" type="file" accept=".csv,text/csv" hidden /></label>
+          <button type="button" class="btn btn-secondary" id="inventory-import-button">Bulk Import CSV</button>
+          <input id="inventory-import-input" type="file" accept=".csv,text/csv" hidden />
         </div>
       </div>
     </section>
