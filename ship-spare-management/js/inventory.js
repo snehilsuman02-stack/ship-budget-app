@@ -79,6 +79,8 @@ function renderTableRows(rows) {
 }
 
 function parseCsv(text) {
+  const firstLine = String(text).replace(/^\uFEFF/, "").split(/\r?\n/, 1)[0] || "";
+  const delimiter = firstLine.includes(";") ? ";" : firstLine.includes("\t") ? "\t" : ",";
   const rows = [];
   let row = [];
   let cell = "";
@@ -92,7 +94,7 @@ function parseCsv(text) {
       index += 1;
     } else if (character === '"') {
       quoted = !quoted;
-    } else if (character === "," && !quoted) {
+    } else if (character === delimiter && !quoted) {
       row.push(cell.trim());
       cell = "";
     } else if ((character === "\n" || character === "\r") && !quoted) {
@@ -110,24 +112,24 @@ function parseCsv(text) {
   if (row.some(Boolean)) rows.push(row);
   if (rows.length < 2) return [];
 
-  const headers = rows.shift().map((header) => header.toLowerCase().replace(/[^a-z0-9]/g, ""));
+  const headers = rows.shift().map((header) => header.replace(/^\uFEFF/, "").toLowerCase().replace(/[^a-z0-9]/g, ""));
   return rows.map((values) => Object.fromEntries(headers.map((header, index) => [header, values[index] || ""])));
 }
 
 function csvItemToSpare(item) {
   return {
     spareId: item.spareid || createId("SP"),
-    spareName: item.sparename || item.name || "",
-    partNumber: item.partnumber || item.partno || "",
+    spareName: item.sparename || item.spare || item.name || "",
+    partNumber: item.partnumber || item.partno || item.partnumbercode || item.code || "",
     nsn: item.nsn || "",
     manufacturerPartNumber: item.manufacturerpartnumber || "",
     manufacturer: item.manufacturer || "",
     description: item.description || "",
-    category: item.category || "",
+    category: item.category || item.sparecategory || "",
     equipmentName: item.equipmentname || item.equipment || "",
     location: item.location || "",
-    quantityAvailable: Number(item.quantityavailable || item.quantity || 0),
-    minimumStockLevel: Number(item.minimumstocklevel || item.minimumqty || 0),
+    quantityAvailable: Number(item.quantityavailable || item.quantity || item.qty || 0),
+    minimumStockLevel: Number(item.minimumstocklevel || item.minimumqty || item.minqty || 0),
     reorderLevel: Number(item.reorderlevel || 0),
     maximumStockLevel: Number(item.maximumstocklevel || 0),
     natureOfSpares: item.natureofspares || item.criticality || "Non-Critical",
@@ -259,22 +261,32 @@ function bindInventoryEvents(container, state) {
   importInput?.addEventListener("change", async () => {
     const file = importInput.files?.[0];
     if (!file) return;
-    const imported = parseCsv(await file.text()).map(csvItemToSpare);
-    const validItems = imported.filter((item) => validateSpare(item).length === 0 && item.partNumber);
-    const existingPartNumbers = new Set(state.spares.map((item) => String(item.partNumber || "").toLowerCase()));
-    const uniqueItems = validItems.filter((item) => {
-      const key = item.partNumber.toLowerCase();
-      if (existingPartNumbers.has(key)) return false;
-      existingPartNumbers.add(key);
-      return true;
-    });
-    if (uniqueItems.length) saveSparesToStorage(state, [...uniqueItems, ...state.spares]);
-    const skipped = imported.length - uniqueItems.length;
-    if (formMessage) {
-      formMessage.textContent = `${uniqueItems.length} imported${skipped ? `; ${skipped} skipped (missing/duplicate/invalid data)` : "."}`;
-      formMessage.className = uniqueItems.length ? "form-message success" : "form-message error";
+    try {
+      const parsedRows = parseCsv(await file.text());
+      if (!parsedRows.length) throw new Error("The CSV is empty or has no header row.");
+      const imported = parsedRows.map(csvItemToSpare);
+      const validItems = imported.filter((item) => validateSpare(item).length === 0 && item.partNumber);
+      const existingPartNumbers = new Set(state.spares.map((item) => String(item.partNumber || "").toLowerCase()));
+      const uniqueItems = validItems.filter((item) => {
+        const key = item.partNumber.toLowerCase();
+        if (existingPartNumbers.has(key)) return false;
+        existingPartNumbers.add(key);
+        return true;
+      });
+      if (uniqueItems.length) saveSparesToStorage(state, [...uniqueItems, ...state.spares]);
+      const skipped = imported.length - uniqueItems.length;
+      if (formMessage) {
+        formMessage.textContent = `${uniqueItems.length} imported${skipped ? `; ${skipped} skipped (missing/duplicate/invalid data)` : "."}`;
+        formMessage.className = uniqueItems.length ? "form-message success" : "form-message error";
+      }
+      showToast(uniqueItems.length ? `${uniqueItems.length} spares imported.` : "No valid new spares found.", uniqueItems.length ? "success" : "error");
+    } catch (error) {
+      if (formMessage) {
+        formMessage.textContent = `Import failed: ${error.message || "Could not read this file."}`;
+        formMessage.className = "form-message error";
+      }
+      showToast(error.message || "Could not read this CSV file.", "error");
     }
-    showToast(uniqueItems.length ? `${uniqueItems.length} spares imported.` : "No valid new spares found.", uniqueItems.length ? "success" : "error");
     importInput.value = "";
     renderPage();
   });
