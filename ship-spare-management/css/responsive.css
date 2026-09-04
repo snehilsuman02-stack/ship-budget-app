@@ -29,8 +29,9 @@
   place-items: center;
   font-size: 0.9rem;
   font-weight: 800;
-  color: #01233f;
-  background: linear-gradient(120deg, #b2d5f3, #6fb4e8);
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--coral-500), var(--sea-500));
+  box-shadow: 0 8px 18px rgba(240, 100, 90, 0.28);
 }
 
 #brand-title {
@@ -90,8 +91,8 @@
   padding: 2px 7px;
   font-size: 0.72rem;
   font-weight: 700;
-  background: #ed9d2f;
-  color: #13253a;
+  background: var(--coral-500);
+  color: #ffffff;
 }
 
 .main-shell {
@@ -175,7 +176,7 @@
 
 .global-search-result:hover,
 .global-search-result:focus {
-  background: rgba(47, 127, 191, 0.1);
+  background: rgba(13, 183, 159, 0.1);
   outline: none;
 }
 

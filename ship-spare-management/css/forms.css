@@ -20,14 +20,14 @@ textarea {
 :root[data-theme="dark"] input,
 :root[data-theme="dark"] select,
 :root[data-theme="dark"] textarea {
-  background: #0a2035;
+  background: var(--surface-raised);
 }
 
 input:focus,
 select:focus,
 textarea:focus,
 button:focus {
-  outline: 2px solid rgba(47, 127, 191, 0.34);
+  outline: 2px solid rgba(22, 135, 217, 0.44);
   outline-offset: 2px;
 }
 
