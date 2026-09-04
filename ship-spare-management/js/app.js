@@ -8,6 +8,7 @@ import { renderSidebar, updateStatusBadges, applySidebarState, toggleSidebarColl
 import { renderDashboard } from "./dashboard.js";
 import { renderCriticalSpares } from "./critical-spares.js";
 import { renderInventory } from "./inventory.js";
+import { renderStockStatus } from "./stock-status.js";
 import { renderReceiving } from "./receiving.js";
 import { renderIssuing } from "./issuing.js";
 import { renderLedger } from "./ledger.js";
@@ -28,8 +29,8 @@ const routeRenderers = {
   dashboard: renderDashboard,
   inventory: renderInventory,
   "critical-spares": renderCriticalSpares,
-  "low-stock": fallback,
-  "out-of-stock": fallback,
+  "low-stock": (container, state) => renderStockStatus(container, state, "low"),
+  "out-of-stock": (container, state) => renderStockStatus(container, state, "out"),
   "expiring-items": fallback,
   receive: renderReceiving,
   issue: renderIssuing,
@@ -157,7 +158,7 @@ function hydrateStateData() {
 
 function calculateBadges() {
   const lowStockCount = state.spares.filter(
-    (x) => Number(x.quantityAvailable || 0) <= Number(x.reorderLevel || 0)
+    (x) => Number(x.quantityAvailable || 0) > 0 && Number(x.quantityAvailable || 0) <= Number(x.reorderLevel || 0)
   ).length;
 
   return {

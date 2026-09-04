@@ -7,7 +7,7 @@ const STORAGE_KEY = "ssms-spares";
 
 function getStatus(quantity, minimum, reorder) {
   if (Number(quantity) <= 0) return { label: "OUT OF STOCK", className: "critical" };
-  if (Number(quantity) <= Number(minimum)) return { label: "LOW STOCK", className: "low" };
+  if (Number(quantity) <= Number(reorder)) return { label: "LOW STOCK", className: "low" };
   return { label: "ADEQUATE", className: "ok" };
 }
 
