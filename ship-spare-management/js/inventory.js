@@ -78,6 +78,73 @@ function renderTableRows(rows) {
     .join("");
 }
 
+function parseCsv(text) {
+  const rows = [];
+  let row = [];
+  let cell = "";
+  let quoted = false;
+
+  for (let index = 0; index < text.length; index += 1) {
+    const character = text[index];
+    const nextCharacter = text[index + 1];
+    if (character === '"' && quoted && nextCharacter === '"') {
+      cell += '"';
+      index += 1;
+    } else if (character === '"') {
+      quoted = !quoted;
+    } else if (character === "," && !quoted) {
+      row.push(cell.trim());
+      cell = "";
+    } else if ((character === "\n" || character === "\r") && !quoted) {
+      if (character === "\r" && nextCharacter === "\n") index += 1;
+      row.push(cell.trim());
+      if (row.some(Boolean)) rows.push(row);
+      row = [];
+      cell = "";
+    } else {
+      cell += character;
+    }
+  }
+
+  row.push(cell.trim());
+  if (row.some(Boolean)) rows.push(row);
+  if (rows.length < 2) return [];
+
+  const headers = rows.shift().map((header) => header.toLowerCase().replace(/[^a-z0-9]/g, ""));
+  return rows.map((values) => Object.fromEntries(headers.map((header, index) => [header, values[index] || ""])));
+}
+
+function csvItemToSpare(item) {
+  return {
+    spareId: item.spareid || createId("SP"),
+    spareName: item.sparename || item.name || "",
+    partNumber: item.partnumber || item.partno || "",
+    nsn: item.nsn || "",
+    manufacturerPartNumber: item.manufacturerpartnumber || "",
+    manufacturer: item.manufacturer || "",
+    description: item.description || "",
+    category: item.category || "",
+    equipmentName: item.equipmentname || item.equipment || "",
+    location: item.location || "",
+    quantityAvailable: Number(item.quantityavailable || item.quantity || 0),
+    minimumStockLevel: Number(item.minimumstocklevel || item.minimumqty || 0),
+    reorderLevel: Number(item.reorderlevel || 0),
+    maximumStockLevel: Number(item.maximumstocklevel || 0),
+    natureOfSpares: item.natureofspares || item.criticality || "Non-Critical",
+    typeOfSpares: item.typeofspares || "Consumable",
+    lastIssue: item.lastissue || "",
+    lastReceipt: item.lastreceipt || "",
+  };
+}
+
+function matchesSearch(item, query) {
+  if (!query) return true;
+  return [item.spareName, item.partNumber, item.nsn, item.equipmentName, item.location, item.manufacturer, item.category]
+    .join(" ")
+    .toLowerCase()
+    .includes(query);
+}
+
 function serializeForm(form) {
   const formData = new FormData(form);
   const values = Object.fromEntries(formData.entries());
@@ -106,12 +173,47 @@ function serializeForm(form) {
 
 function bindInventoryEvents(container, state) {
   const searchInput = container.querySelector("#inventory-search");
+  const pageSizeInput = container.querySelector("#inventory-page-size");
+  const previousPageButton = container.querySelector("#inventory-previous-page");
+  const nextPageButton = container.querySelector("#inventory-next-page");
+  const pageLabel = container.querySelector("#inventory-page-label");
+  const resultCount = container.querySelector("#inventory-result-count");
+  const importInput = container.querySelector("#inventory-import-input");
   const form = container.querySelector("#inventory-form");
   const resetBtn = container.querySelector("#inventory-reset-btn");
   const formMessage = container.querySelector("#inventory-form-message");
   const tableBody = container.querySelector("#inventory-table-body");
+  let currentPage = 1;
+
+  function renderPage() {
+    const query = String(searchInput?.value || "").trim().toLowerCase();
+    const filteredRows = (state.spares || []).filter((item) => matchesSearch(item, query));
+    const pageSize = Number(pageSizeInput?.value || 25);
+    const pageCount = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+    currentPage = Math.min(currentPage, pageCount);
+    const start = (currentPage - 1) * pageSize;
+
+    if (tableBody) tableBody.innerHTML = renderTableRows(filteredRows.slice(start, start + pageSize));
+    if (resultCount) resultCount.textContent = `${filteredRows.length} matching of ${(state.spares || []).length} records`;
+    if (pageLabel) pageLabel.textContent = `Page ${currentPage} of ${pageCount}`;
+    if (previousPageButton) previousPageButton.disabled = currentPage <= 1;
+    if (nextPageButton) nextPageButton.disabled = currentPage >= pageCount;
+  }
 
   tableBody?.addEventListener("click", (event) => {
+    const editButton = event.target.closest("[data-action='edit-spare']");
+    if (editButton) {
+      const spare = state.spares.find((item) => item.spareId === editButton.dataset.id);
+      if (!spare || !form) return;
+      ["spareId", "spareName", "partNumber", "nsn", "manufacturerPartNumber", "manufacturer", "description", "category", "equipmentName", "location", "quantityAvailable", "minimumStockLevel", "reorderLevel", "maximumStockLevel", "natureOfSpares", "typeOfSpares", "lastIssue", "lastReceipt"].forEach((field) => {
+        const node = form.querySelector(`[name="${field}"]`);
+        if (node) node.value = spare[field] ?? "";
+      });
+      if (formMessage) formMessage.textContent = "Editing existing record.";
+      form.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+
     const deleteButton = event.target.closest("[data-action='delete-spare']");
     if (!deleteButton) return;
 
@@ -123,7 +225,7 @@ function bindInventoryEvents(container, state) {
 
     const nextSpares = state.spares.filter((item) => item.spareId !== spare.spareId);
     saveSparesToStorage(state, nextSpares);
-    tableBody.innerHTML = renderTableRows(nextSpares);
+    renderPage();
     if (formMessage) {
       formMessage.textContent = "Spare record deleted.";
       formMessage.className = "form-message success";
@@ -133,28 +235,46 @@ function bindInventoryEvents(container, state) {
 
   if (searchInput) {
     searchInput.addEventListener("input", (event) => {
-      const query = String(event.target.value || "").trim().toLowerCase();
-      if (!tableBody) return;
-
-      const rows = !query
-        ? state.spares
-        : state.spares.filter((item) => {
-            const haystack = [
-              item.spareName,
-              item.partNumber,
-              item.nsn,
-              item.equipmentName,
-              item.location,
-              item.manufacturer,
-            ]
-              .join(" ")
-              .toLowerCase();
-            return haystack.includes(query);
-          });
-
-      tableBody.innerHTML = renderTableRows(rows);
+      currentPage = 1;
+      renderPage();
     });
   }
+
+  pageSizeInput?.addEventListener("change", () => {
+    currentPage = 1;
+    renderPage();
+  });
+  previousPageButton?.addEventListener("click", () => {
+    currentPage -= 1;
+    renderPage();
+  });
+  nextPageButton?.addEventListener("click", () => {
+    currentPage += 1;
+    renderPage();
+  });
+
+  importInput?.addEventListener("change", async () => {
+    const file = importInput.files?.[0];
+    if (!file) return;
+    const imported = parseCsv(await file.text()).map(csvItemToSpare);
+    const validItems = imported.filter((item) => validateSpare(item).length === 0 && item.partNumber);
+    const existingPartNumbers = new Set(state.spares.map((item) => String(item.partNumber || "").toLowerCase()));
+    const uniqueItems = validItems.filter((item) => {
+      const key = item.partNumber.toLowerCase();
+      if (existingPartNumbers.has(key)) return false;
+      existingPartNumbers.add(key);
+      return true;
+    });
+    if (uniqueItems.length) saveSparesToStorage(state, [...uniqueItems, ...state.spares]);
+    const skipped = imported.length - uniqueItems.length;
+    if (formMessage) {
+      formMessage.textContent = `${uniqueItems.length} imported${skipped ? `; ${skipped} skipped (missing/duplicate/invalid data)` : "."}`;
+      formMessage.className = uniqueItems.length ? "form-message success" : "form-message error";
+    }
+    showToast(uniqueItems.length ? `${uniqueItems.length} spares imported.` : "No valid new spares found.", uniqueItems.length ? "success" : "error");
+    importInput.value = "";
+    renderPage();
+  });
 
   if (resetBtn) {
     resetBtn.addEventListener("click", () => {
@@ -164,7 +284,7 @@ function bindInventoryEvents(container, state) {
       const message = container.querySelector("#inventory-form-message");
       if (message) message.textContent = "";
       const tableBody = container.querySelector("#inventory-table-body");
-      if (tableBody) tableBody.innerHTML = renderTableRows(state.spares);
+      renderPage();
     });
   }
 
@@ -205,57 +325,25 @@ function bindInventoryEvents(container, state) {
         formMessage.textContent = "Spare record saved successfully.";
         formMessage.className = "form-message success";
       }
-      const tableBody = container.querySelector("#inventory-table-body");
-      if (tableBody) tableBody.innerHTML = renderTableRows(state.spares);
+      renderPage();
       showToast("Inventory item saved.", "success");
     });
   }
 
-  const editButtons = container.querySelectorAll("[data-action='edit-spare']");
-  editButtons.forEach((button) => {
-    button.addEventListener("click", () => {
-      const spare = state.spares.find((item) => item.spareId === button.dataset.id);
-      if (!spare) return;
-
-      const fields = [
-        "spareId",
-        "spareName",
-        "partNumber",
-        "nsn",
-        "manufacturerPartNumber",
-        "manufacturer",
-        "description",
-        "category",
-        "equipmentName",
-        "location",
-        "quantityAvailable",
-        "minimumStockLevel",
-        "reorderLevel",
-        "maximumStockLevel",
-        "natureOfSpares",
-        "typeOfSpares",
-        "lastIssue",
-        "lastReceipt",
-      ];
-
-      fields.forEach((field) => {
-        const node = form?.querySelector(`[name="${field}"]`);
-        if (node) node.value = spare[field] ?? (field === "natureOfSpares" ? spare.criticality || "" : field === "typeOfSpares" ? "Consumable" : "");
-      });
-
-      if (formMessage) formMessage.textContent = "Editing existing record.";
-    });
-  });
+  renderPage();
 }
 
 export function renderInventory(container, state) {
-  const filtered = state.spares || [];
+  const filtered = (state.spares || []).slice(0, 25);
 
   container.innerHTML = `
     <section class="card">
       <div class="section-title">
         <h2>Inventory Management</h2>
-        <button type="button" class="btn btn-primary" id="inventory-add-btn">Add New Spare</button>
+        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+          <button type="button" class="btn btn-primary" id="inventory-add-btn">Add New Spare</button>
+          <label class="btn btn-secondary" for="inventory-import-input">Import CSV<input id="inventory-import-input" type="file" accept=".csv,text/csv" hidden /></label>
+        </div>
       </div>
     </section>
 
@@ -353,7 +441,10 @@ export function renderInventory(container, state) {
     <section class="card" style="margin-top: 14px;">
       <div class="section-title">
         <h3>Inventory Register</h3>
-        <input id="inventory-search" type="search" placeholder="Search by spare name, part number, NSN, equipment, manufacturer or location" style="max-width: 480px;" />
+        <div class="inventory-controls">
+          <input id="inventory-search" type="search" placeholder="Search name, part number, NSN, equipment or location" />
+          <label>Rows <select id="inventory-page-size"><option value="25" selected>25</option><option value="50">50</option><option value="100">100</option></select></label>
+        </div>
       </div>
       <div class="table-wrap">
         <table>
@@ -379,6 +470,12 @@ export function renderInventory(container, state) {
             ${renderTableRows(filtered)}
           </tbody>
         </table>
+      </div>
+      <div class="inventory-pagination">
+        <span id="inventory-result-count" class="muted"></span>
+        <button type="button" class="btn btn-secondary" id="inventory-previous-page">Previous</button>
+        <span id="inventory-page-label" class="muted">Page 1</span>
+        <button type="button" class="btn btn-secondary" id="inventory-next-page">Next</button>
       </div>
     </section>
   `;

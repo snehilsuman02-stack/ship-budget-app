@@ -44,3 +44,21 @@ tbody tr:hover {
 .status.critical {
   color: var(--danger);
 }
+
+.inventory-pagination {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  padding-top: 12px;
+}
+
+.inventory-pagination .muted:first-child {
+  margin-right: auto;
+}
+
+.inventory-pagination button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
