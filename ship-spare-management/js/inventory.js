@@ -117,21 +117,23 @@ function parseCsv(text) {
 }
 
 function csvItemToSpare(item) {
+  const minimumStockLevel = Number(item.minimumstocklevel || item.minimumstock || item.minqty || item.minlevel || 0);
+  const reorderLevel = Number(item.reorderlevel || item.reorderpoint || minimumStockLevel);
   return {
     spareId: item.spareid || createId("SP"),
     spareName: item.sparename || item.spare || item.name || "",
-    partNumber: item.partnumber || item.partno || item.partnumbercode || item.code || "",
+    partNumber: item.partnumber || item.partno || item.partnumbercode || item.partnumberid || item.code || "",
     nsn: item.nsn || "",
     manufacturerPartNumber: item.manufacturerpartnumber || "",
     manufacturer: item.manufacturer || "",
     description: item.description || "",
-    category: item.category || item.sparecategory || "",
+    category: item.category || item.sparecategory || item.group || "",
     equipmentName: item.equipmentname || item.equipment || "",
     location: item.location || "",
     quantityAvailable: Number(item.quantityavailable || item.quantity || item.qty || 0),
-    minimumStockLevel: Number(item.minimumstocklevel || item.minimumqty || item.minqty || 0),
-    reorderLevel: Number(item.reorderlevel || 0),
-    maximumStockLevel: Number(item.maximumstocklevel || 0),
+    minimumStockLevel,
+    reorderLevel,
+    maximumStockLevel: Number(item.maximumstocklevel || item.maximumstock || item.maxqty || 0),
     natureOfSpares: item.natureofspares || item.criticality || "Non-Critical",
     typeOfSpares: item.typeofspares || "Consumable",
     lastIssue: item.lastissue || "",
@@ -266,17 +268,22 @@ function bindInventoryEvents(container, state) {
       if (!parsedRows.length) throw new Error("The CSV is empty or has no header row.");
       const imported = parsedRows.map(csvItemToSpare);
       const validItems = imported.filter((item) => validateSpare(item).length === 0 && item.partNumber);
+      const invalidCount = imported.length - validItems.length;
       const existingPartNumbers = new Set(state.spares.map((item) => String(item.partNumber || "").toLowerCase()));
+      let duplicateCount = 0;
       const uniqueItems = validItems.filter((item) => {
         const key = item.partNumber.toLowerCase();
-        if (existingPartNumbers.has(key)) return false;
+        if (existingPartNumbers.has(key)) {
+          duplicateCount += 1;
+          return false;
+        }
         existingPartNumbers.add(key);
         return true;
       });
       if (uniqueItems.length) saveSparesToStorage(state, [...uniqueItems, ...state.spares]);
-      const skipped = imported.length - uniqueItems.length;
+      const skipped = invalidCount + duplicateCount;
       if (formMessage) {
-        formMessage.textContent = `${uniqueItems.length} imported${skipped ? `; ${skipped} skipped (missing/duplicate/invalid data)` : "."}`;
+        formMessage.textContent = `${uniqueItems.length} imported${skipped ? `; ${invalidCount} invalid, ${duplicateCount} duplicate` : "."}`;
         formMessage.className = uniqueItems.length ? "form-message success" : "form-message error";
       }
       showToast(uniqueItems.length ? `${uniqueItems.length} spares imported.` : "No valid new spares found.", uniqueItems.length ? "success" : "error");
